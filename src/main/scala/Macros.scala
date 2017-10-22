@@ -7,10 +7,6 @@ import scala.util.{Success, Failure}
 class Translator[C <: Context](val c: C) {
   import c.universe._
 
-  val prelude = q"""
-    import shapeless._
-  """
-
   def abstractMethods(tpe: Type): Iterable[MethodSymbol] = for {
     member <- tpe.members
     if member.isMethod
@@ -59,7 +55,7 @@ object TraitMacro {
     val abstractMethods = t.abstractMethods(traitTag.tpe)
     val validMethods = abstractMethods.filter(t.methodReturnsSubType(_, resultTag.tpe))
 
-    val bridgeVal = q"${c.prefix.tree}.bridge"
+    val bridgeVal = q"${c.prefix.tree}"
     val corePkg = q"_root_.apitrait.core"
 
     val methodImpls = validMethods.map { method =>
@@ -76,16 +72,16 @@ object TraitMacro {
 
       q"""
         def ${method.name}(...$parameters): ${method.returnType} = {
-          val params = $bridgeVal.serialize[$paramListType]($paramList)
+          val params = $bridgeVal.serializer.serialize[$paramListType]($paramList)
           val request = $corePkg.Request[${pickleTypeTag.tpe}]($path, params)
-          val result = $bridgeVal.call(request)
-          $bridgeVal.deserialize[$returnType](result)
+          val result = $bridgeVal.transport(request)
+          $bridgeVal.canMap(result)(x => $bridgeVal.serializer.deserialize[$returnType](x))
         }
       """
     }
 
     val tree = q"""
-      ${t.prelude}
+      import shapeless._
 
       new ${traitTag.tpe} {
         ..$methodImpls
@@ -100,7 +96,7 @@ object TraitMacro {
 object RouterMacro {
   import apitrait.core.Request
 
-  def impl[Trait, Pickler[_], Result[_], PickleType]
+  def impl[Trait , Pickler[_], Result[_], PickleType]
     (c: Context)
     (impl: c.Expr[Trait])
     (implicit traitTag: c.WeakTypeTag[Trait], picklerTag: c.WeakTypeTag[Pickler[_]], resultTag: c.WeakTypeTag[Result[_]], pickleTypeTag: c.WeakTypeTag[PickleType]): c.Expr[PartialFunction[Request[PickleType], Result[PickleType]]] = {
@@ -111,7 +107,7 @@ object RouterMacro {
     val abstractMethods = t.abstractMethods(traitTag.tpe)
     val validMethods = abstractMethods.filter(t.methodReturnsSubType(_, resultTag.tpe))
 
-    val bridgeVal = q"${c.prefix.tree}.bridge"
+    val bridgeVal = q"${c.prefix.tree}"
     val corePkg = q"_root_.apitrait.core"
 
     val methodCases = validMethods.map { method =>
@@ -124,14 +120,14 @@ object RouterMacro {
 
       cq"""
         $corePkg.Request($path, payload) =>
-          val args = $bridgeVal.deserialize[$paramListType](payload)
+          val args = $bridgeVal.serializer.deserialize[$paramListType](payload)
           val result = $impl.${method.name.toTermName}(..$argParams)
-          $bridgeVal.serialize[$returnType](result)
+          $bridgeVal.canMap(result)(x => $bridgeVal.serializer.serialize[$returnType](x))
       """
     }
 
     val tree = q"""
-      ${t.prelude}
+      import shapeless._
 
       {
         case ..$methodCases

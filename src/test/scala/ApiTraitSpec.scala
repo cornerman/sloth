@@ -1,9 +1,7 @@
 package apitrait
 
 import org.scalatest._
-import scala.concurrent.Future
-
-import apitrait.core._
+import scala.concurrent.{Future, ExecutionContext}
 
 //shared
 trait Api {
@@ -15,33 +13,38 @@ object ApiImpl extends Api {
   def fun(a: Int): Future[Int] = Future.successful(a)
 }
 
+import apitrait.core._
+
+class CanMapFuture(implicit ec: ExecutionContext) extends CanMap[Future] {
+  def apply[T, S](t: Future[T])(f: T => S): Future[S] = t.map(f)
+}
+
 class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
+
  "run boopickle" in {
     import boopickle.Default._
     import java.nio.ByteBuffer
 
+    object BoopickleSerializer extends Serializer[Pickler, ByteBuffer] {
+      override def serialize[T : Pickler](arg: T): ByteBuffer = Pickle.intoBytes(arg)
+      override def deserialize[T : Pickler](arg: ByteBuffer): T = Unpickle[T].fromBytes(arg)
+    }
+
     object Backend {
       import apitrait.server._
 
-      object Bridge extends ServerBridge[Pickler, Future, ByteBuffer] {
-        override def serialize[T : Pickler](arg: Future[T]): Future[ByteBuffer] = arg.map(Pickle.intoBytes(_))
-        override def deserialize[T : Pickler](arg: ByteBuffer): T = Unpickle[T].fromBytes(arg)
-      }
-
-      val server = new Server(Bridge)
+      val server = new Server(BoopickleSerializer, new CanMapFuture)
       val router = server.route[Api](ApiImpl)
     }
 
     object Frontend {
       import apitrait.client._
 
-      object Bridge extends ClientBridge[Pickler, Future, ByteBuffer] {
-        override def serialize[T : Pickler](arg: T): ByteBuffer = Pickle.intoBytes(arg)
-        override def deserialize[T : Pickler](arg: Future[ByteBuffer]): Future[T] = arg.map(Unpickle[T].fromBytes(_))
-        override def call(request: Request[ByteBuffer]): Future[ByteBuffer] = Backend.router(request)
+      object Transport extends RequestTransport[Future, ByteBuffer] {
+        override def apply(request: Request[ByteBuffer]): Future[ByteBuffer] = Backend.router(request)
       }
 
-      val client = new Client(Bridge)
+      val client = new Client(BoopickleSerializer, new CanMapFuture, Transport)
       val api = client.wire[Api]
     }
 
@@ -49,34 +52,31 @@ class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
   }
 
   "run circe" in {
-    import shapeless._
     import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._, io.circe.shapes._
 
-    class Serializer[T](implicit val encoder: Encoder[T], val decoder: Decoder[T])
-    implicit def EncoderDecoderIsSerializer[T : Encoder : Decoder]: Serializer[T] = new Serializer[T]
+    class EncodeDecode[T](implicit val encoder: Encoder[T], val decoder: Decoder[T])
+    implicit def EncoderWithDecoder[T : Encoder : Decoder]: EncodeDecode[T] = new EncodeDecode[T]
+
+    object CirceSerializer extends Serializer[EncodeDecode, String] {
+      override def serialize[T](arg: T)(implicit ed: EncodeDecode[T]): String = arg.asJson(ed.encoder).noSpaces
+      override def deserialize[T](arg: String)(implicit ed: EncodeDecode[T]): T = decode[T](arg)(ed.decoder).right.get
+    }
 
     object Backend {
       import apitrait.server._
 
-      object Bridge extends ServerBridge[Serializer, Future, String] {
-        override def serialize[T](arg: Future[T])(implicit s: Serializer[T]): Future[String] = arg.map(_.asJson(s.encoder).noSpaces)
-        override def deserialize[T](arg: String)(implicit s: Serializer[T]): T = decode[T](arg)(s.decoder).right.get // handle errors? return option[T], but then what?
-      }
-
-      val server = new Server(Bridge)
+      val server = new Server(CirceSerializer, new CanMapFuture)
       val router = server.route[Api](ApiImpl)
     }
 
     object Frontend {
       import apitrait.client._
 
-      object Bridge extends ClientBridge[Serializer, Future, String] {
-        override def serialize[T](arg: T)(implicit s: Serializer[T]): String = arg.asJson(s.encoder).noSpaces
-        override def deserialize[T](arg: Future[String])(implicit s: Serializer[T]): Future[T] = arg.map(arg => decode[T](arg)(s.decoder).right.get)
-        override def call(request: Request[String]): Future[String] = Backend.router(request)
+      object Transport extends RequestTransport[Future, String] {
+        override def apply(request: Request[String]): Future[String] = Backend.router(request)
       }
 
-      val client = new Client(Bridge)
+      val client = new Client(CirceSerializer, new CanMapFuture, Transport)
       val api = client.wire[Api]
     }
 
