@@ -12,6 +12,10 @@ lazy val root = (project in file(".")).
       shapeless ::
       scalaReflect % scalaVersion.value ::
       boopickle % Test ::
+      circe.core % Test ::
+      circe.parser % Test ::
+      circe.generic % Test ::
+      circe.shapes % Test ::
       scalaTest % Test ::
       Nil,
     scalacOptions ++=
