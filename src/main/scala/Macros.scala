@@ -60,6 +60,7 @@ object TraitMacro {
     val validMethods = abstractMethods.filter(t.methodReturnsSubType(_, resultTag.tpe))
 
     val bridgeVal = q"${c.prefix.tree}.bridge"
+    val corePkg = q"_root_.apitrait.core"
 
     val methodImpls = validMethods.map { method =>
       val path = t.methodPath(traitTag.tpe, method)
@@ -75,7 +76,10 @@ object TraitMacro {
 
       q"""
         def ${method.name}(...$parameters): ${method.returnType} = {
-          $bridgeVal.call[$paramListType, $returnType]($path, $paramList)
+          val params = $bridgeVal.serialize[$paramListType]($paramList)
+          val request = $corePkg.Request[${pickleTypeTag.tpe}]($path, params)
+          val result = $bridgeVal.call(request)
+          $bridgeVal.deserialize[$returnType](result)
         }
       """
     }

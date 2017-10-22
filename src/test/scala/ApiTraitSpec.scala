@@ -4,6 +4,8 @@ import org.scalatest._
 import scala.concurrent.Future
 import shapeless._
 
+import apitrait.core._
+
 trait Api {
   def fun(a: Int): Future[Int]
 }
@@ -13,13 +15,12 @@ object ApiImpl extends Api {
 }
 
 trait MyPickler[+A]
-object MyPickler {
+object MyPickler extends {
   implicit def getMyPickler[T] = new MyPickler[T] {}
 
   def serialize[T : MyPickler](o: T): Any = o
   def deserialize[T : MyPickler](o: Any): T = o.asInstanceOf[T]
 }
-
 
 object Backend {
   import apitrait.server._
@@ -36,20 +37,16 @@ object Backend {
 
 object Frontend {
   import apitrait.client._
-  import apitrait.core._
   import scala.concurrent.ExecutionContext.Implicits.global
 
   object Bridge extends ClientBridge[MyPickler, Future, Any] {
-    override def call[T : MyPickler, R](path: List[String], arguments: T): Future[R] = {
-      val pickled = MyPickler.serialize(arguments)
-      val request = Request[Any](path, pickled)
-      val result = Backend.router(request)
-      result.map(MyPickler.deserialize[R](_))
-    }
+    override def serialize[T : MyPickler](arg: T): Any = MyPickler.serialize(arg)
+    override def deserialize[T : MyPickler](arg: Future[Any]): Future[T] = arg.map(MyPickler.deserialize[T](_))
+    override def call(request: Request[Any]): Future[Any] = Backend.router(request)
   }
 
   val client = new Client(Bridge)
-  val api = client.wired[Api]
+  val api = client.wire[Api]
 }
 
 class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
