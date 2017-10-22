@@ -4,13 +4,13 @@ import org.scalatest._
 import scala.concurrent.{Future, ExecutionContext}
 
 //shared
-trait Api {
-  def fun(a: Int): Future[Int]
+trait Api[Result[_], T] {
+  def fun(a: Int, s: T): Result[Int]
 }
 
 //server
-object ApiImpl extends Api {
-  def fun(a: Int): Future[Int] = Future.successful(a)
+object ApiImpl extends Api[Future, String] {
+  def fun(a: Int, s: String): Future[Int] = Future.successful(a)
 }
 
 import apitrait.core._
@@ -21,6 +21,7 @@ class CanMapFuture(implicit ec: ExecutionContext) extends CanMap[Future] {
 
 class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
   val canMapFuture = new CanMapFuture
+  type ApiFuture = Api[Future, String]
 
  "run boopickle" in {
     import boopickle.Default._
@@ -39,17 +40,17 @@ class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
       import apitrait.server._
 
       val server = new Server(BoopickleSerializer, canMapFuture)
-      val router = server.route[Api](ApiImpl)
+      val router = server.route[ApiFuture](ApiImpl)
     }
 
     object Frontend {
       import apitrait.client._
 
       val client = new Client(BoopickleSerializer, canMapFuture, Transport)
-      val api = client.wire[Api]
+      val api = client.wire[ApiFuture]
     }
 
-    Frontend.api.fun(1).map(_ mustEqual 1)
+    Frontend.api.fun(1, "hi").map(_ mustEqual 1)
   }
 
   "run circe" in {
@@ -71,16 +72,16 @@ class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
       import apitrait.server._
 
       val server = new Server(CirceSerializer, canMapFuture)
-      val router = server.route[Api](ApiImpl)
+      val router = server.route[ApiFuture](ApiImpl)
     }
 
     object Frontend {
       import apitrait.client._
 
       val client = new Client(CirceSerializer, canMapFuture, Transport)
-      val api = client.wire[Api]
+      val api = client.wire[ApiFuture]
     }
 
-    Frontend.api.fun(1).map(_ mustEqual 1)
+    Frontend.api.fun(1, "hi").map(_ mustEqual 1)
   }
 }
