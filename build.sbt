@@ -11,6 +11,7 @@ lazy val root = (project in file(".")).
     libraryDependencies ++=
       shapeless ::
       scalaReflect % scalaVersion.value ::
+      boopickle % Test ::
       scalaTest % Test ::
       Nil,
     scalacOptions ++=
