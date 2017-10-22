@@ -20,6 +20,7 @@ class CanMapFuture(implicit ec: ExecutionContext) extends CanMap[Future] {
 }
 
 class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
+  val canMapFuture = new CanMapFuture
 
  "run boopickle" in {
     import boopickle.Default._
@@ -30,21 +31,21 @@ class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
       override def deserialize[T : Pickler](arg: ByteBuffer): T = Unpickle[T].fromBytes(arg)
     }
 
+    object Transport extends RequestTransport[Future, ByteBuffer] {
+      override def apply(request: Request[ByteBuffer]): Future[ByteBuffer] = Backend.router(request)
+    }
+
     object Backend {
       import apitrait.server._
 
-      val server = new Server(BoopickleSerializer, new CanMapFuture)
+      val server = new Server(BoopickleSerializer, canMapFuture)
       val router = server.route[Api](ApiImpl)
     }
 
     object Frontend {
       import apitrait.client._
 
-      object Transport extends RequestTransport[Future, ByteBuffer] {
-        override def apply(request: Request[ByteBuffer]): Future[ByteBuffer] = Backend.router(request)
-      }
-
-      val client = new Client(BoopickleSerializer, new CanMapFuture, Transport)
+      val client = new Client(BoopickleSerializer, canMapFuture, Transport)
       val api = client.wire[Api]
     }
 
@@ -62,21 +63,21 @@ class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
       override def deserialize[T](arg: String)(implicit ed: EncodeDecode[T]): T = decode[T](arg)(ed.decoder).right.get
     }
 
+    object Transport extends RequestTransport[Future, String] {
+      override def apply(request: Request[String]): Future[String] = Backend.router(request)
+    }
+
     object Backend {
       import apitrait.server._
 
-      val server = new Server(CirceSerializer, new CanMapFuture)
+      val server = new Server(CirceSerializer, canMapFuture)
       val router = server.route[Api](ApiImpl)
     }
 
     object Frontend {
       import apitrait.client._
 
-      object Transport extends RequestTransport[Future, String] {
-        override def apply(request: Request[String]): Future[String] = Backend.router(request)
-      }
-
-      val client = new Client(CirceSerializer, new CanMapFuture, Transport)
+      val client = new Client(CirceSerializer, canMapFuture, Transport)
       val api = client.wire[Api]
     }
 
