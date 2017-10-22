@@ -52,9 +52,9 @@ object Translator {
 }
 
 object TraitMacro {
-  def impl[Trait, Pickler[_], Result[_], PickleType]
+  def impl[Trait, Result[_], PickleType]
     (c: Context)
-    (implicit traitTag: c.WeakTypeTag[Trait], picklerTag: c.WeakTypeTag[Pickler[_]], resultTag: c.WeakTypeTag[Result[_]], pickleTypeTag: c.WeakTypeTag[PickleType]): c.Expr[Trait] = {
+    (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]], pickleTypeTag: c.WeakTypeTag[PickleType]): c.Expr[Trait] = {
     import c.universe._
 
     val t = Translator(c)
@@ -102,10 +102,10 @@ object TraitMacro {
 object RouterMacro {
   import apitrait.core.Request
 
-  def impl[Trait , Pickler[_], Result[_], PickleType]
+  def impl[Trait, Result[_], PickleType]
     (c: Context)
     (impl: c.Expr[Trait])
-    (implicit traitTag: c.WeakTypeTag[Trait], picklerTag: c.WeakTypeTag[Pickler[_]], resultTag: c.WeakTypeTag[Result[_]], pickleTypeTag: c.WeakTypeTag[PickleType]): c.Expr[PartialFunction[Request[PickleType], Result[PickleType]]] = {
+    (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]], pickleTypeTag: c.WeakTypeTag[PickleType]): c.Expr[PartialFunction[Request[PickleType], Result[PickleType]]] = {
     import c.universe._
 
     val t = Translator(c)

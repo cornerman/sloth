@@ -9,5 +9,5 @@ class Server[Pickler[_], Result[_], PickleType](
 
   type Router = PartialFunction[Request[PickleType], Result[PickleType]]
 
-  def route[T](impl: T): Router = macro RouterMacro.impl[T, Pickler, Result, PickleType]
+  def route[T](impl: T): Router = macro RouterMacro.impl[T, Result, PickleType]
 }
