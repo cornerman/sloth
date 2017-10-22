@@ -120,11 +120,13 @@ object RouterMacro {
       val paramTypes = t.methodParamTypes(method)
       val paramListType = t.buildHList(paramTypes)
       val argParams = List.tabulate(paramTypes.size)(i => q"args($i)")
+      val returnType = method.returnType.typeArgs.head
 
       cq"""
         $corePkg.Request($path, payload) =>
           val args = $bridgeVal.deserialize[$paramListType](payload)
-          $impl.${method.name.toTermName}(..$argParams)
+          val result = $impl.${method.name.toTermName}(..$argParams)
+          $bridgeVal.serialize[$returnType](result)
       """
     }
 
