@@ -55,13 +55,14 @@ class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
 
   "run circe" in {
     import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._, io.circe.shapes._
+    import apitrait.helper._
 
-    class EncodeDecode[T](implicit val encoder: Encoder[T], val decoder: Decoder[T])
-    implicit def EncoderWithDecoder[T : Encoder : Decoder]: EncodeDecode[T] = new EncodeDecode[T]
+    val dualPickler = DualPicklerFactory[Encoder, Decoder]
+    import dualPickler._
 
-    object CirceSerializer extends Serializer[EncodeDecode, String] {
-      override def serialize[T](arg: T)(implicit ed: EncodeDecode[T]): String = arg.asJson(ed.encoder).noSpaces
-      override def deserialize[T](arg: String)(implicit ed: EncodeDecode[T]): T = decode[T](arg)(ed.decoder).right.get
+    object CirceSerializer extends Serializer[DualPickler, String] {
+      override def serialize[T](arg: T)(implicit ed: DualPickler[T]): String = arg.asJson(ed.encoder).noSpaces
+      override def deserialize[T](arg: String)(implicit ed: DualPickler[T]): T = decode[T](arg)(ed.decoder).right.get
     }
 
     object Transport extends RequestTransport[Future, String] {
