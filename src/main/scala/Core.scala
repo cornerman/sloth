@@ -1,4 +1,4 @@
-package apitrait.core
+package sloth.core
 
 case class Request[T](path: List[String], payload: T)
 

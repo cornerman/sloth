@@ -1,4 +1,4 @@
-package apitrait.macros
+package sloth.macros
 
 import scala.reflect.macros.blackbox.Context
 import scala.language.experimental.macros
@@ -62,7 +62,7 @@ object TraitMacro {
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
     val bridgeVal = q"${c.prefix.tree}"
-    val corePkg = q"_root_.apitrait.core"
+    val corePkg = q"_root_.sloth.core"
 
     val methodImpls = validMethods.collect { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
@@ -100,7 +100,7 @@ object TraitMacro {
 }
 
 object RouterMacro {
-  import apitrait.core.Request
+  import sloth.core.Request
 
   def impl[Trait, Result[_], PickleType]
     (c: Context)
@@ -113,7 +113,7 @@ object RouterMacro {
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
     val bridgeVal = q"${c.prefix.tree}"
-    val corePkg = q"_root_.apitrait.core"
+    val corePkg = q"_root_.sloth.core"
 
     val methodCases = validMethods.map { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)

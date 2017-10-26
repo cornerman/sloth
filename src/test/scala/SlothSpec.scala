@@ -1,4 +1,4 @@
-package apitrait
+package sloth
 
 import org.scalatest._
 import scala.concurrent.{Future, ExecutionContext}
@@ -13,13 +13,13 @@ object ApiImpl extends Api[Future, String] {
   def fun(a: Int, s: String): Future[Int] = Future.successful(a)
 }
 
-import apitrait.core._
+import sloth.core._
 
 class CanMapFuture(implicit ec: ExecutionContext) extends CanMap[Future] {
   def apply[T, S](t: Future[T])(f: T => S): Future[S] = t.map(f)
 }
 
-class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
+class SlothSpec extends AsyncFreeSpec with MustMatchers {
   val canMapFuture = new CanMapFuture
   type ApiFuture = Api[Future, String]
 
@@ -37,14 +37,14 @@ class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
     }
 
     object Backend {
-      import apitrait.server._
+      import sloth.server._
 
       val server = new Server(BoopickleSerializer, canMapFuture)
       val router = server.route[ApiFuture](ApiImpl)
     }
 
     object Frontend {
-      import apitrait.client._
+      import sloth.client._
 
       val client = new Client(BoopickleSerializer, canMapFuture, Transport)
       val api = client.wire[ApiFuture]
@@ -55,7 +55,7 @@ class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
 
   "run circe" in {
     import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._, io.circe.shapes._
-    import apitrait.helper._
+    import sloth.helper._
 
     val dualPickler = DualPicklerFactory[Encoder, Decoder]
     import dualPickler._
@@ -70,14 +70,14 @@ class ApiTraitSpec extends AsyncFreeSpec with MustMatchers {
     }
 
     object Backend {
-      import apitrait.server._
+      import sloth.server._
 
       val server = new Server(CirceSerializer, canMapFuture)
       val router = server.route[ApiFuture](ApiImpl)
     }
 
     object Frontend {
-      import apitrait.client._
+      import sloth.client._
 
       val client = new Client(CirceSerializer, canMapFuture, Transport)
       val api = client.wire[ApiFuture]

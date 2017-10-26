@@ -1,7 +1,7 @@
-package apitrait.server
+package sloth.server
 
-import apitrait.core._
-import apitrait.macros.RouterMacro
+import sloth.core._
+import sloth.macros.RouterMacro
 
 class Server[Pickler[_], Result[_], PickleType](
   val serializer: Serializer[Pickler, PickleType],

@@ -1,4 +1,4 @@
-package apitrait.helper
+package sloth.helper
 
 //TODO: better split type params of serializer to support Encoder and Decoder not only Pickler
 class DualPicklerFactory[Encoder[_], Decoder[_]] private {

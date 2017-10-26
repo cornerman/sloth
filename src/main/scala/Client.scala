@@ -1,7 +1,7 @@
-package apitrait.client
+package sloth.client
 
-import apitrait.core._
-import apitrait.macros.TraitMacro
+import sloth.core._
+import sloth.macros.TraitMacro
 
 class Client[Pickler[_], Result[_], PickleType](
   val serializer: Serializer[Pickler, PickleType],
