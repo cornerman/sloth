@@ -24,10 +24,9 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
   type ApiFuture = Api[Future, String]
 
  "run boopickle" in {
-    import boopickle.Default._
-    import java.nio.ByteBuffer
+    import boopickle.Default._, java.nio.ByteBuffer
 
-    object BoopickleSerializer extends Serializer[Pickler, ByteBuffer] {
+    object BoopickleSerializer extends Serializer[Pickler, Pickler, ByteBuffer] {
       override def serialize[T : Pickler](arg: T): ByteBuffer = Pickle.intoBytes(arg)
       override def deserialize[T : Pickler](arg: ByteBuffer): T = Unpickle[T].fromBytes(arg)
     }
@@ -55,14 +54,10 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
 
   "run circe" in {
     import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._, io.circe.shapes._
-    import sloth.helper._
 
-    val dualPickler = DualPicklerFactory[Encoder, Decoder]
-    import dualPickler._
-
-    object CirceSerializer extends Serializer[DualPickler, String] {
-      override def serialize[T](arg: T)(implicit ed: DualPickler[T]): String = arg.asJson(ed.encoder).noSpaces
-      override def deserialize[T](arg: String)(implicit ed: DualPickler[T]): T = decode[T](arg)(ed.decoder).right.get
+    object CirceSerializer extends Serializer[Encoder, Decoder, String] {
+      override def serialize[T : Encoder](arg: T): String = arg.asJson.noSpaces
+      override def deserialize[T : Decoder](arg: String): T = decode[T](arg).right.get
     }
 
     object Transport extends RequestTransport[Future, String] {

@@ -2,9 +2,9 @@ package sloth.core
 
 case class Request[T](path: List[String], payload: T)
 
-trait Serializer[Pickler[_], PickleType] {
-  def serialize[T : Pickler](arg: T): PickleType
-  def deserialize[T : Pickler](arg: PickleType): T
+trait Serializer[Encoder[_], Decoder[_], PickleType] {
+  def serialize[T : Encoder](arg: T): PickleType
+  def deserialize[T : Decoder](arg: PickleType): T
 }
 
 trait CanMap[Result[_]] {
