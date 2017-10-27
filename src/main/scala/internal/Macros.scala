@@ -42,7 +42,7 @@ class Translator[C <: Context](val c: C) {
 object Translator {
   def apply[T](c: Context)(f: Translator[c.type] => c.Tree): c.Expr[T] = {
     val tree = f(new Translator(c))
-    println("XXXX: " + tree)
+    // println("XXX: " + tree)
     c.Expr(tree)
   }
 }
