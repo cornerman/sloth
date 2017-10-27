@@ -1,4 +1,4 @@
-package sloth
+package test.sloth
 
 import org.scalatest._
 import scala.concurrent.Future

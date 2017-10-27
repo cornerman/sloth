@@ -8,6 +8,7 @@ class Translator[C <: Context](val c: C) {
   val corePkg = q"_root_.sloth.core"
   val serverPkg = q"_root_.sloth.server"
   val clientPkg = q"_root_.sloth.client"
+  val macrosPkg = q"_root_.sloth.macros"
   val bridgeVal = q"${c.prefix.tree}"
 
   //TODO: maybe warn about missing functions. will get trait is abstract error in the end.
@@ -63,13 +64,15 @@ object TraitMacro {
 
       q"""
         override def ${symbol.name}(...$parameters): ${method.resultType} = {
-          ${t.bridgeVal}.execute[$paramListType, $innerReturnType]($path, $paramListValue)
+          impl.execute[$paramListType, $innerReturnType]($path, $paramListValue)
         }
       """
     }
 
     q"""
       import shapeless._
+
+      val impl = new ${t.macrosPkg}.ClientImpl(${t.bridgeVal})
 
       new ${traitTag.tpe.resultType} {
         ..$methodImpls
@@ -83,7 +86,7 @@ object RouterMacro {
 
   def impl[Trait, PickleType, Result[_]]
     (c: Context)
-    (impl: c.Expr[Trait])
+    (value: c.Expr[Trait])
     (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Server.Router[PickleType, Result]] = Translator(c) { t =>
     import c.universe._
 
@@ -96,8 +99,8 @@ object RouterMacro {
 
       cq"""
         ${t.corePkg}.Request($path, payload) =>
-          ${t.bridgeVal}.execute[$paramListType, $innerReturnType](payload) { args =>
-            ($impl.${symbol.name.toTermName} _).toProduct(args)
+          impl.execute[$paramListType, $innerReturnType](payload) { args =>
+            ($value.${symbol.name.toTermName} _).toProduct(args)
           }
       """
     }
@@ -108,6 +111,8 @@ object RouterMacro {
 
     q"""
       import shapeless._, syntax.std.function._
+
+      val impl = new ${t.macrosPkg}.ServerImpl(${t.bridgeVal})
 
       {
         case ..$methodCases
