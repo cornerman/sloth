@@ -5,17 +5,13 @@ import scala.reflect.macros.blackbox.Context
 class Translator[C <: Context](val c: C) {
   import c.universe._
 
-  def methodReturnsSubType(method: MethodType, returnType: Type): Boolean = {
-    val methodType = method.resultType
-    if (methodType.typeArgs.size == returnType.typeArgs.size) {
-      val typeArgSymbols = returnType.typeArgs.map(_.typeSymbol)
-      val fittedType = returnType.substituteTypes(typeArgSymbols, methodType.typeArgs)
-      println(methodType)
-      println(fittedType.resultType)
-      methodType <:< fittedType.resultType
-    } else false
-  }
+  val corePkg = q"_root_.sloth.core"
+  val serverPkg = q"_root_.sloth.server"
+  val clientPkg = q"_root_.sloth.client"
+  val bridgeVal = q"${c.prefix.tree}"
 
+  //TODO: maybe warn about missing functions. will get trait is abstract error in the end.
+  //TODO: warn on name clashes or rename in path to name1, name2, name3?
   def supportedMethodsInType(tpe: Type, returnType: Type): Iterable[(MethodSymbol, MethodType)] = for {
     member <- tpe.members
     if member.isMethod
@@ -23,7 +19,7 @@ class Translator[C <: Context](val c: C) {
     if symbol.isAbstract
     if symbol.typeParams.isEmpty
     method = symbol.typeSignatureIn(tpe).asInstanceOf[MethodType]
-    if methodReturnsSubType(method, returnType)
+    if method.resultType.typeConstructor <:< returnType.resultType.typeConstructor
   } yield (symbol, method)
 
   def methodPath(tpe: Type, m: MethodSymbol): List[String] =
@@ -31,115 +27,92 @@ class Translator[C <: Context](val c: C) {
     m.name.toString ::
     Nil
 
+  def paramsAsValDefs(m: MethodType): List[List[ValDef]] =
+    m.paramLists.map(_.map(p => q"val ${p.name.toTermName}: ${p.typeSignature}"))
+
   //TODO multiple param lists?
-  def paramTypesInType(m: MethodType): List[Type] =
-    m.paramLists.flatMap(_.map(_.typeSignature)).toList
+  def paramValuesAsHList(m: MethodType): Tree =
+    m.paramLists.flatten.reverse.foldLeft[Tree](q"HNil")((a, b) => q"${b.name.toTermName} :: $a")
 
-  def paramTermsInType(m: MethodType): List[TermName] =
-    m.paramLists.flatMap(_.map(_.name.toTermName)).toList
-
-  def hlistType(list: List[Type]) =
-    list.reverse.foldLeft[Tree](tq"HNil")((a, b) => tq"$b :: $a")
-
-  def hlistTerm(list: List[TermName]) =
-    list.reverse.foldLeft[Tree](q"HNil")((a, b) => q"$b :: $a")
+  def paramTypesAsHList(m: MethodType): Tree =
+    m.paramLists.flatten.reverse.foldLeft[Tree](tq"HNil")((a, b) => tq"${b.typeSignature} :: $a")
 }
 
 object Translator {
-  def apply(c: Context): Translator[c.type] = new Translator(c)
+  def apply[T](c: Context)(f: Translator[c.type] => c.Tree): c.Expr[T] = {
+    val tree = f(new Translator(c))
+    println("XXXX: " + tree)
+    c.Expr(tree)
+  }
 }
 
 object TraitMacro {
   def impl[Trait, PickleType, Result[_]]
     (c: Context)
-    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = {
+    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = Translator(c) { t =>
     import c.universe._
-
-    val t = Translator(c)
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val bridgeVal = q"${c.prefix.tree}"
-
     val methodImpls = validMethods.collect { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
-      val parameters =  method.paramLists.map(_.map { param =>
-        q"val ${param.name.toTermName}: ${param.typeSignature}"
-      })
-
-      val paramTypes = t.paramTypesInType(method)
-      val paramTerms = t.paramTermsInType(method)
-      val paramListType = t.hlistType(paramTypes)
-      val paramList = t.hlistTerm(paramTerms)
+      val parameters =  t.paramsAsValDefs(method)
+      val paramListType = t.paramTypesAsHList(method)
+      val paramListValue = t.paramValuesAsHList(method)
       val innerReturnType = method.resultType.typeArgs.head
 
       q"""
-        def ${symbol.name}(...$parameters): ${method.resultType} = {
-          $bridgeVal.execute[$paramListType, $innerReturnType]($path, $paramList)
+        override def ${symbol.name}(...$parameters): ${method.resultType} = {
+          ${t.bridgeVal}.execute[$paramListType, $innerReturnType]($path, $paramListValue)
         }
       """
     }
 
-    val tree = q"""
+    q"""
       import shapeless._
 
       new ${traitTag.tpe.resultType} {
         ..$methodImpls
       }
     """
-
-    println("XXXX: " + tree)
-    c.Expr(tree)
   }
 }
 
 object RouterMacro {
-  import sloth.core.{SlothFailure, Request}
+  import sloth.server.Server
 
   def impl[Trait, PickleType, Result[_]]
     (c: Context)
     (impl: c.Expr[Trait])
-    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Request[PickleType] => Either[SlothFailure, Result[PickleType]]] = {
+    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Server.Router[PickleType, Result]] = Translator(c) { t =>
     import c.universe._
-
-    val t = Translator(c)
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val corePkg = q"_root_.sloth.core"
-    val bridgeVal = q"${c.prefix.tree}"
-
     val methodCases = validMethods.map { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
-
-      val argsVar = q"args"
-      val paramTypes = t.paramTypesInType(method)
-      val paramListType = t.hlistType(paramTypes)
-      val argParams = List.tabulate(paramTypes.size)(i => q"$argsVar($i)")
+      val paramListType = t.paramTypesAsHList(method)
       val innerReturnType = method.resultType.typeArgs.head
 
       cq"""
-        $corePkg.Request($path, payload) =>
-          $bridgeVal.execute[$paramListType, $innerReturnType](payload) { args =>
-            $impl.${symbol.name.toTermName}(..$argParams)
+        ${t.corePkg}.Request($path, payload) =>
+          ${t.bridgeVal}.execute[$paramListType, $innerReturnType](payload) { args =>
+            ($impl.${symbol.name.toTermName} _).toProduct(args)
           }
       """
     }
 
     val defaultCase = cq"""
-      $corePkg.Request(path, _) => Left($corePkg.SlothFailure.PathNotFound(path))
+      ${t.corePkg}.Request(path, _) => Left(${t.corePkg}.SlothFailure.PathNotFound(path))
     """
 
-    val tree = q"""
-      import shapeless._
+    q"""
+      import shapeless._, syntax.std.function._
 
       {
         case ..$methodCases
         case $defaultCase
-      } : $bridgeVal.Router
+      } : ${t.serverPkg}.Server.Router[${pickleTypeTag.tpe}, ${resultTag.tpe}]
     """
-
-    println("XXXX: " + tree)
-    c.Expr(tree)
   }
 }

@@ -4,11 +4,11 @@ import cats.MonadError
 import sloth.core._
 import sloth.macros.TraitMacro
 
-class Client[Encoder[_], Decoder[_], PickleType, Result[_], ErrorType](
+class Client[Encoder[_], Decoder[_], PickleType, Result[_], ErrorType] private(
   transport: RequestTransport[PickleType, Result])(implicit
   serializer: Serializer[Encoder, Decoder, PickleType],
-  monad: MonadError[Result, ErrorType],
-  isFailure: SlothFailure => ErrorType) {
+  monad: MonadError[Result, _ >: ErrorType],
+  failureIsError: SlothFailure => ErrorType) {
 
   def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result]
 
@@ -22,4 +22,17 @@ class Client[Encoder[_], Decoder[_], PickleType, Result[_], ErrorType](
       }
     }
   }
+}
+
+object Client {
+  def apply[Encoder[_], Decoder[_], PickleType, Result[_]](
+    transport: RequestTransport[PickleType, Result])(implicit
+    serializer: Serializer[Encoder, Decoder, PickleType],
+    monad: MonadError[Result, _ >: SlothFailure]) = new Client[Encoder, Decoder, PickleType, Result, SlothFailure](transport)
+
+  def apply[Encoder[_], Decoder[_], PickleType, Result[_], ErrorType](
+    transport: RequestTransport[PickleType, Result])(implicit
+    serializer: Serializer[Encoder, Decoder, PickleType],
+    monad: MonadError[Result, _ >: ErrorType],
+    failureIsError: SlothFailure => ErrorType) = new Client[Encoder, Decoder, PickleType, Result, ErrorType](transport)
 }

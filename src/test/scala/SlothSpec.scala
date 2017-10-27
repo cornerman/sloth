@@ -2,6 +2,7 @@ package sloth
 
 import org.scalatest._
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 //shared
 trait Api[Result[_], T] {
@@ -34,14 +35,14 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = new Server[Encoder, Decoder, String, Future]
+      val server = Server[Encoder, Decoder, String, Future]
       val router = server.route[ApiT[Future]](ApiImpl)
     }
 
     object Frontend {
       import sloth.client._
 
-      val client = new Client[Encoder, Decoder, String, Future, Throwable](Transport)
+      val client = Client[Encoder, Decoder, String, Future](Transport)
       val api = client.wire[ApiT[Future]]
     }
 
@@ -52,28 +53,41 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     import boopickle.Default._, java.nio.ByteBuffer
     import cats.data.EitherT
 
+    sealed trait ApiError
+    implicit class SlothError(failure: SlothFailure) extends ApiError
+    case class UnexpectedError(msg: String) extends ApiError
+
+    type Result[T] = EitherT[Future, ApiError, T]
+
     implicit object BoopickleSerializer extends Serializer[Pickler, Pickler, ByteBuffer] {
       override def serialize[T : Pickler](arg: T): ByteBuffer = Pickle.intoBytes(arg)
       override def deserialize[T : Pickler](arg: ByteBuffer): Either[Throwable, T] = util.Try(Unpickle[T].fromBytes(arg)).toEither
     }
 
-    object Transport extends RequestTransport[ByteBuffer, EitherT[Future, SlothFailure, ?]] {
-      override def apply(request: Request[ByteBuffer]): EitherT[Future, SlothFailure, ByteBuffer] =
-        EitherT(Backend.router(request).fold[Future[Either[SlothFailure, ByteBuffer]]](err => Future.successful(Left(err)), _.map(Right(_))))
+    object Transport extends RequestTransport[ByteBuffer, Result] {
+      override def apply(request: Request[ByteBuffer]): Result[ByteBuffer] = EitherT(
+        Backend.router(request) match {
+          case Left(err) =>
+            Future.successful(Left(SlothError(err)))
+          case Right(result) =>
+            result
+              .map(Right(_))
+              .recover { case NonFatal(t) => Left(UnexpectedError(t.getMessage)) }
+        }
+      )
     }
 
     object Backend {
       import sloth.server._
 
-      val server = new Server[Pickler, Pickler, ByteBuffer, Future]
+      val server = Server[Pickler, Pickler, ByteBuffer, Future]
       val router = server.route[ApiT[Future]](ApiImpl)
     }
 
     object Frontend {
       import sloth.client._
 
-      type Result[T] = EitherT[Future, SlothFailure, T]
-      val client = new Client[Pickler, Pickler, ByteBuffer, Result, SlothFailure](Transport)
+      val client = Client[Pickler, Pickler, ByteBuffer, Result, ApiError](Transport)
       val api = client.wire[ApiT[Result]]
     }
 
