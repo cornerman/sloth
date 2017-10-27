@@ -1,16 +1,21 @@
 package sloth.core
 
-case class Request[T](path: List[String], payload: T)
-
 trait Serializer[Encoder[_], Decoder[_], PickleType] {
   def serialize[T : Encoder](arg: T): PickleType
-  def deserialize[T : Decoder](arg: PickleType): T
+  def deserialize[T : Decoder](arg: PickleType): Either[Throwable, T]
 }
 
-trait CanMap[Result[_]] {
-  def apply[T, S](t: Result[T])(f: T => S): Result[S]
-}
+case class Request[T](path: List[String], payload: T)
 
-trait RequestTransport[Result[_], PickleType] {
+trait RequestTransport[PickleType, Result[_]] {
   def apply(request: Request[PickleType]): Result[PickleType]
+}
+
+sealed trait SlothFailure
+object SlothFailure {
+  case class DeserializationError(ex: Throwable) extends SlothFailure
+  case class PathNotFound(path: List[String]) extends SlothFailure
+
+  case class SlothException(failure: SlothFailure) extends Exception(failure.toString)
+  implicit def FailureIsThrowable(failure: SlothFailure): Throwable = SlothException(failure)
 }

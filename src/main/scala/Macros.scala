@@ -1,8 +1,6 @@
 package sloth.macros
 
 import scala.reflect.macros.blackbox.Context
-import scala.language.experimental.macros
-import scala.util.{Success, Failure}
 
 class Translator[C <: Context](val c: C) {
   import c.universe._
@@ -52,9 +50,9 @@ object Translator {
 }
 
 object TraitMacro {
-  def impl[Trait, Result[_], PickleType]
+  def impl[Trait, PickleType, Result[_]]
     (c: Context)
-    (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]], pickleTypeTag: c.WeakTypeTag[PickleType]): c.Expr[Trait] = {
+    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = {
     import c.universe._
 
     val t = Translator(c)
@@ -62,7 +60,6 @@ object TraitMacro {
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
     val bridgeVal = q"${c.prefix.tree}"
-    val corePkg = q"_root_.sloth.core"
 
     val methodImpls = validMethods.collect { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
@@ -78,10 +75,7 @@ object TraitMacro {
 
       q"""
         def ${symbol.name}(...$parameters): ${method.resultType} = {
-          val params = $bridgeVal.serializer.serialize[$paramListType]($paramList)
-          val request = $corePkg.Request[${pickleTypeTag.tpe}]($path, params)
-          val result = $bridgeVal.transport(request)
-          $bridgeVal.canMap(result)(x => $bridgeVal.serializer.deserialize[$innerReturnType](x))
+          $bridgeVal.execute[$paramListType, $innerReturnType]($path, $paramList)
         }
       """
     }
@@ -100,43 +94,49 @@ object TraitMacro {
 }
 
 object RouterMacro {
-  import sloth.core.Request
+  import sloth.core.{SlothFailure, Request}
 
-  def impl[Trait, Result[_], PickleType]
+  def impl[Trait, PickleType, Result[_]]
     (c: Context)
     (impl: c.Expr[Trait])
-    (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]], pickleTypeTag: c.WeakTypeTag[PickleType]): c.Expr[PartialFunction[Request[PickleType], Result[PickleType]]] = {
+    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Request[PickleType] => Either[SlothFailure, Result[PickleType]]] = {
     import c.universe._
 
     val t = Translator(c)
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val bridgeVal = q"${c.prefix.tree}"
     val corePkg = q"_root_.sloth.core"
+    val bridgeVal = q"${c.prefix.tree}"
 
     val methodCases = validMethods.map { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
 
+      val argsVar = q"args"
       val paramTypes = t.paramTypesInType(method)
       val paramListType = t.hlistType(paramTypes)
-      val argParams = List.tabulate(paramTypes.size)(i => q"args($i)")
+      val argParams = List.tabulate(paramTypes.size)(i => q"$argsVar($i)")
       val innerReturnType = method.resultType.typeArgs.head
 
       cq"""
         $corePkg.Request($path, payload) =>
-          val args = $bridgeVal.serializer.deserialize[$paramListType](payload)
-          val result = $impl.${symbol.name.toTermName}(..$argParams)
-          $bridgeVal.canMap(result)(x => $bridgeVal.serializer.serialize[$innerReturnType](x))
+          $bridgeVal.execute[$paramListType, $innerReturnType](payload) { args =>
+            $impl.${symbol.name.toTermName}(..$argParams)
+          }
       """
     }
+
+    val defaultCase = cq"""
+      $corePkg.Request(path, _) => Left($corePkg.SlothFailure.PathNotFound(path))
+    """
 
     val tree = q"""
       import shapeless._
 
       {
         case ..$methodCases
-      } : PartialFunction[$corePkg.Request[${pickleTypeTag.tpe}], ${resultTag.tpe.typeSymbol}[${pickleTypeTag.tpe}]]
+        case $defaultCase
+      } : $bridgeVal.Router
     """
 
     println("XXXX: " + tree)

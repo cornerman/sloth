@@ -1,7 +1,7 @@
 package sloth
 
 import org.scalatest._
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.Future
 
 //shared
 trait Api[Result[_], T] {
@@ -13,71 +13,70 @@ object ApiImpl extends Api[Future, String] {
   def fun(a: Int, s: String): Future[Int] = Future.successful(a)
 }
 
-import sloth.core._
-
-class CanMapFuture(implicit ec: ExecutionContext) extends CanMap[Future] {
-  def apply[T, S](t: Future[T])(f: T => S): Future[S] = t.map(f)
-}
-
 class SlothSpec extends AsyncFreeSpec with MustMatchers {
-  val canMapFuture = new CanMapFuture
-  type ApiFuture = Api[Future, String]
+  type ApiT[T[_]] = Api[T, String]
 
- "run boopickle" in {
-    import boopickle.Default._, java.nio.ByteBuffer
+  import sloth.core._
+  import cats.implicits._
 
-    object BoopickleSerializer extends Serializer[Pickler, Pickler, ByteBuffer] {
-      override def serialize[T : Pickler](arg: T): ByteBuffer = Pickle.intoBytes(arg)
-      override def deserialize[T : Pickler](arg: ByteBuffer): T = Unpickle[T].fromBytes(arg)
+  "run circe" in {
+    import io.circe._, io.circe.parser._, io.circe.syntax._, io.circe.shapes._
+
+    implicit object CirceSerializer extends Serializer[Encoder, Decoder, String] {
+      override def serialize[T : Encoder](arg: T): String = arg.asJson.noSpaces
+      override def deserialize[T : Decoder](arg: String): Either[Throwable, T] = decode[T](arg)
     }
 
-    object Transport extends RequestTransport[Future, ByteBuffer] {
-      override def apply(request: Request[ByteBuffer]): Future[ByteBuffer] = Backend.router(request)
+    object Transport extends RequestTransport[String, Future] {
+      override def apply(request: Request[String]): Future[String] = Backend.router(request).fold(Future.failed(_), identity)
     }
 
     object Backend {
       import sloth.server._
 
-      val server = new Server(BoopickleSerializer, canMapFuture)
-      val router = server.route[ApiFuture](ApiImpl)
+      val server = new Server[Encoder, Decoder, String, Future]
+      val router = server.route[ApiT[Future]](ApiImpl)
     }
 
     object Frontend {
       import sloth.client._
 
-      val client = new Client(BoopickleSerializer, canMapFuture, Transport)
-      val api = client.wire[ApiFuture]
+      val client = new Client[Encoder, Decoder, String, Future, Throwable](Transport)
+      val api = client.wire[ApiT[Future]]
     }
 
     Frontend.api.fun(1, "hi").map(_ mustEqual 1)
   }
 
-  "run circe" in {
-    import io.circe._, io.circe.generic.auto._, io.circe.parser._, io.circe.syntax._, io.circe.shapes._
+ "run boopickle" in {
+    import boopickle.Default._, java.nio.ByteBuffer
+    import cats.data.EitherT
 
-    object CirceSerializer extends Serializer[Encoder, Decoder, String] {
-      override def serialize[T : Encoder](arg: T): String = arg.asJson.noSpaces
-      override def deserialize[T : Decoder](arg: String): T = decode[T](arg).right.get
+    implicit object BoopickleSerializer extends Serializer[Pickler, Pickler, ByteBuffer] {
+      override def serialize[T : Pickler](arg: T): ByteBuffer = Pickle.intoBytes(arg)
+      override def deserialize[T : Pickler](arg: ByteBuffer): Either[Throwable, T] = util.Try(Unpickle[T].fromBytes(arg)).toEither
     }
 
-    object Transport extends RequestTransport[Future, String] {
-      override def apply(request: Request[String]): Future[String] = Backend.router(request)
+    object Transport extends RequestTransport[ByteBuffer, EitherT[Future, SlothFailure, ?]] {
+      override def apply(request: Request[ByteBuffer]): EitherT[Future, SlothFailure, ByteBuffer] =
+        EitherT(Backend.router(request).fold[Future[Either[SlothFailure, ByteBuffer]]](err => Future.successful(Left(err)), _.map(Right(_))))
     }
 
     object Backend {
       import sloth.server._
 
-      val server = new Server(CirceSerializer, canMapFuture)
-      val router = server.route[ApiFuture](ApiImpl)
+      val server = new Server[Pickler, Pickler, ByteBuffer, Future]
+      val router = server.route[ApiT[Future]](ApiImpl)
     }
 
     object Frontend {
       import sloth.client._
 
-      val client = new Client(CirceSerializer, canMapFuture, Transport)
-      val api = client.wire[ApiFuture]
+      type Result[T] = EitherT[Future, SlothFailure, T]
+      val client = new Client[Pickler, Pickler, ByteBuffer, Result, SlothFailure](Transport)
+      val api = client.wire[ApiT[Result]]
     }
 
-    Frontend.api.fun(1, "hi").map(_ mustEqual 1)
+    Frontend.api.fun(1, "hi").value.map(_.right.get mustEqual 1)
   }
 }

@@ -1,5 +1,8 @@
 import Dependencies._
 
+resolvers += Resolver.sonatypeRepo("releases")
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
+
 lazy val root = (project in file(".")).
   settings(
     inThisBuild(List(
@@ -10,6 +13,7 @@ lazy val root = (project in file(".")).
     name := "sloth",
     libraryDependencies ++=
       shapeless ::
+      cats.core ::
       scalaReflect % scalaVersion.value ::
       boopickle % Test ::
       circe.core % Test ::

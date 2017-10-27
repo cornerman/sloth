@@ -4,6 +4,9 @@ import Keys._
 object Dependencies {
   lazy val scalaTest = "org.scalatest" %% "scalatest" % "3.0.3"
   lazy val shapeless = "com.chuusai" %% "shapeless" % "2.3.2"
+  lazy val cats = new {
+    val core = "org.typelevel" %% "cats-core" % "1.0.0-MF"
+  }
   lazy val scalaReflect = "org.scala-lang" % "scala-reflect"
   lazy val boopickle = "io.suzaku" %% "boopickle" % "1.2.6"
   lazy val circe = new {
