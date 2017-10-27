@@ -1,4 +1,4 @@
-package sloth.macros
+package sloth.internal
 
 import sloth.core._
 import sloth.server.Server

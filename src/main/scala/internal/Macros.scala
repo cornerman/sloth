@@ -1,4 +1,4 @@
-package sloth.macros
+package sloth.internal
 
 import scala.reflect.macros.blackbox.Context
 
@@ -8,7 +8,7 @@ class Translator[C <: Context](val c: C) {
   val corePkg = q"_root_.sloth.core"
   val serverPkg = q"_root_.sloth.server"
   val clientPkg = q"_root_.sloth.client"
-  val macrosPkg = q"_root_.sloth.macros"
+  val internalPkg = q"_root_.sloth.internal"
   val bridgeVal = q"${c.prefix.tree}"
 
   //TODO: maybe warn about missing functions. will get trait is abstract error in the end.
@@ -72,7 +72,7 @@ object TraitMacro {
     q"""
       import shapeless._
 
-      val impl = new ${t.macrosPkg}.ClientImpl(${t.bridgeVal})
+      val impl = new ${t.internalPkg}.ClientImpl(${t.bridgeVal})
 
       new ${traitTag.tpe.resultType} {
         ..$methodImpls
@@ -112,7 +112,7 @@ object RouterMacro {
     q"""
       import shapeless._, syntax.std.function._
 
-      val impl = new ${t.macrosPkg}.ServerImpl(${t.bridgeVal})
+      val impl = new ${t.internalPkg}.ServerImpl(${t.bridgeVal})
 
       {
         case ..$methodCases
