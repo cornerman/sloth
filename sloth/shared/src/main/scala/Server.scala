@@ -1,8 +1,9 @@
 package sloth.server
 
-import cats.Functor
 import sloth.core._
 import sloth.internal.RouterMacro
+
+import cats.Functor
 
 class Server[Encoder[_], Decoder[_], PickleType, Result[_]] private(implicit
   private[sloth] val serializer: Serializer[Encoder, Decoder, PickleType],

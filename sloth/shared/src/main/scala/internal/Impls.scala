@@ -1,8 +1,8 @@
 package sloth.internal
 
 import sloth.core._
-import sloth.server.Server
 import sloth.client.Client
+import sloth.server.Server
 
 class ServerImpl[Encoder[_], Decoder[_], PickleType, Result[_]](server: Server[Encoder, Decoder, PickleType, Result]) {
   import server._

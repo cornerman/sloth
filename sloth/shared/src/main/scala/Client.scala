@@ -1,8 +1,9 @@
 package sloth.client
 
-import cats.MonadError
 import sloth.core._
 import sloth.internal.TraitMacro
+
+import cats.MonadError
 
 class Client[Encoder[_], Decoder[_], PickleType, Result[_], ErrorType] private(
   private[sloth] val transport: RequestTransport[PickleType, Result])(implicit
