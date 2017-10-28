@@ -19,10 +19,10 @@ class Translator[C <: Context](val c: C) {
   private def validateMethod(tpe: Type, returnType: Type, symbol: MethodSymbol): Either[String, (MethodSymbol, MethodType)] = for {
     _ <- valid(symbol.typeParams.isEmpty, s"method ${symbol.name} has type parameters")
     method = symbol.typeSignatureIn(tpe).asInstanceOf[MethodType]
-    methodResult = method.resultType.typeConstructor
-    returnResult = returnType.resultType.typeConstructor
     //TODO: we should support multiple param lists, either with a nested hlist or split or arg count?
     _ <- valid(method.paramLists.size < 2, s"method ${symbol.name} has more than one parameter list: ${method.paramLists}")
+    methodResult = method.finalResultType.typeConstructor
+    returnResult = returnType.finalResultType.typeConstructor
     _ <- valid(methodResult <:< returnResult, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
   } yield (symbol, method)
 
@@ -87,10 +87,10 @@ object TraitMacro {
       val parameters =  t.paramsAsValDefs(method)
       val paramListType = t.paramTypesAsHList(method)
       val paramListValue = t.paramValuesAsHList(method)
-      val innerReturnType = method.resultType.typeArgs.head
+      val innerReturnType = method.finalResultType.typeArgs.head
 
       q"""
-        override def ${symbol.name}(...$parameters): ${method.resultType} = {
+        override def ${symbol.name}(...$parameters): ${method.finalResultType} = {
           impl.execute[$paramListType, $innerReturnType]($path, $paramListValue)
         }
       """
@@ -101,7 +101,7 @@ object TraitMacro {
 
       val impl = new ${t.internalPkg}.ClientImpl(${t.bridgeVal})
 
-      new ${traitTag.tpe.resultType} {
+      new ${traitTag.tpe.finalResultType} {
         ..$methodImpls
       }
     """
@@ -122,7 +122,7 @@ object RouterMacro {
     val methodCases = validMethods.map { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
       val paramListType = t.paramTypesAsHList(method)
-      val innerReturnType = method.resultType.typeArgs.head
+      val innerReturnType = method.finalResultType.typeArgs.head
 
       cq"""
         ${t.corePkg}.Request($path, payload) =>
