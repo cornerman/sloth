@@ -1,5 +1,7 @@
 package sloth.internal
 
+import sloth.helper.EitherHelper
+
 import scala.reflect.macros.blackbox.Context
 
 class Translator[C <: Context](val c: C) {
@@ -11,17 +13,42 @@ class Translator[C <: Context](val c: C) {
   val internalPkg = q"_root_.sloth.internal"
   val bridgeVal = q"${c.prefix.tree}"
 
-  //TODO: maybe warn about missing functions. will get trait is abstract error in the end.
-  //TODO: warn on name clashes or rename in path to name1, name2, name3?
-  def supportedMethodsInType(tpe: Type, returnType: Type): Iterable[(MethodSymbol, MethodType)] = for {
-    member <- tpe.members
+  private def abort(msg: String) = c.abort(c.enclosingPosition, msg)
+
+  private def valid(check: => Boolean, errorMsg: => String): Either[String, Unit] = Either.cond(check, (), errorMsg)
+  private def validateMethod(tpe: Type, returnType: Type, symbol: MethodSymbol): Either[String, (MethodSymbol, MethodType)] = for {
+    _ <- valid(symbol.typeParams.isEmpty, s"method ${symbol.name} has type parameters")
+    method = symbol.typeSignatureIn(tpe).asInstanceOf[MethodType]
+    methodResult = method.resultType.typeConstructor
+    returnResult = returnType.resultType.typeConstructor
+    //TODO: we should support multiple param lists, either with a nested hlist or split or arg count?
+    _ <- valid(method.paramLists.size < 2, s"method ${symbol.name} has more than one parameter list: ${method.paramLists}")
+    _ <- valid(methodResult <:< returnResult, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
+  } yield (symbol, method)
+
+  private def validateIndividualMethods(tpe: Type, returnType: Type): List[Either[String, (MethodSymbol, MethodType)]] = for {
+    member <- tpe.members.toList
     if member.isMethod
     symbol = member.asMethod
     if symbol.isAbstract
-    if symbol.typeParams.isEmpty
-    method = symbol.typeSignatureIn(tpe).asInstanceOf[MethodType]
-    if method.resultType.typeConstructor <:< returnType.resultType.typeConstructor
-  } yield (symbol, method)
+  } yield validateMethod(tpe, returnType, symbol)
+
+  //TODO rename overloaded methods to fun1, fun2, fun3 or append TypeSignature instead of number?
+  private def validateAllMethods(methods: List[(MethodSymbol, MethodType)]): List[Either[String, (MethodSymbol, MethodType)]] =
+    methods.groupBy(_._1.name).map {
+      case (_, x :: Nil) => Right(x)
+      case (k, _) => Left(s"method $k is overloaded")
+    }.toList
+
+  def supportedMethodsInType(tpe: Type, returnType: Type): List[(MethodSymbol, MethodType)] = {
+    val methods = validateIndividualMethods(tpe, returnType)
+    val sequence = EitherHelper.sequence(methods).flatMap(methods => EitherHelper.sequence(validateAllMethods(methods)))
+
+    sequence match {
+      case Left(errors) => abort(s"type '$tpe' contains unsupported methods: ${errors.mkString(", ")}")
+      case Right(methods) => methods
+    }
+  }
 
   def methodPath(tpe: Type, m: MethodSymbol): List[String] =
     tpe.typeSymbol.name.toString ::
