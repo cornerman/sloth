@@ -1,7 +1,7 @@
 inThisBuild(Seq(
   organization := "com.github.cornerman",
-  scalaVersion := "2.12.3",
-  crossScalaVersions := Seq("2.10.6", "2.11.11", "2.12.3"),
+  scalaVersion := "2.12.4",
+  crossScalaVersions := Seq("2.10.6", "2.11.11", "2.12.4"),
   version      := "0.1.0-SNAPSHOT",
   scalacOptions ++=
     "-encoding" :: "UTF-8" ::
