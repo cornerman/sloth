@@ -56,18 +56,14 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
   }
 
  "run different result types" in {
-    import cats.Functor
     import cats.data.EitherT
+    import cats.derived.functor._
 
     sealed trait ApiError
     implicit class SlothError(failure: SlothFailure) extends ApiError
     case class UnexpectedError(msg: String) extends ApiError
 
     type ClientResult[T] = EitherT[Future, ApiError, T]
-
-    implicit def serverResponseFunctor = new Functor[ServerResult] {
-      def map[A, B](fa: ServerResult[A])(f: A => B): ServerResult[B] = fa.copy(result = fa.result map f)
-    }
 
     object Transport extends RequestTransport[PickleType, ClientResult] {
       override def apply(request: Request[PickleType]): ClientResult[PickleType] = EitherT(

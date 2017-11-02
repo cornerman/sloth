@@ -26,9 +26,10 @@ lazy val sloth = crossProject.
   settings(
     name := "sloth",
     libraryDependencies ++=
+      Deps.scalaReflect.value % scalaVersion.value ::
       Deps.shapeless.value ::
       Deps.cats.core.value ::
-      Deps.scalaReflect.value % scalaVersion.value ::
+      Deps.cats.kittens.value % Test ::
       Deps.scalaTest.value % Test ::
       Nil
   )
