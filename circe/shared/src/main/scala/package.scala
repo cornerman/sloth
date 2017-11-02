@@ -14,18 +14,10 @@ package object circe {
   }
 
   implicit class CirceClient(client: Client.type) {
-    def circe[Result[_]](
-      transport: RequestTransport[String, Result])(implicit
-      monad: MonadError[Result, _ >: SlothFailure]) = Client[Encoder, Decoder, String, Result, SlothFailure](transport)
-
-    def circe[Result[_], ErrorType](
-      transport: RequestTransport[String, Result])(implicit
-      monad: MonadError[Result, _ >: ErrorType],
-      failureIsError: SlothFailure => ErrorType) = Client[Encoder, Decoder, String, Result, ErrorType](transport)
+    val circe = Client[Encoder, Decoder, String]
   }
 
   implicit class CirceServer(server: Server.type) {
-    def circe[Result[_]](implicit
-      functor: Functor[Result]) = Server[Encoder, Decoder, String, Result]
+    val circe = Server[Encoder, Decoder, String]
   }
 }

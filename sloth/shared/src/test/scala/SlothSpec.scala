@@ -41,14 +41,14 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server[Encoder, Decoder, PickleType, Future]
+      val server = Server[Encoder, Decoder, PickleType][Future]
       val router = server.route[ApiT[Future]](ApiImplFuture)
     }
 
     object Frontend {
       import sloth.client._
 
-      val client = Client[Encoder, Decoder, PickleType, Future](Transport)
+      val client = Client[Encoder, Decoder, PickleType][Future](Transport)
       val api = client.wire[ApiT[Future]]
     }
 
@@ -81,14 +81,14 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server[Encoder, Decoder, PickleType, ServerResult]
+      val server = Server[Encoder, Decoder, PickleType][ServerResult]
       val router = server.route[ApiT[ServerResult]](ApiImplResponse)
     }
 
     object Frontend {
       import sloth.client._
 
-      val client = Client[Encoder, Decoder, PickleType, ClientResult, ApiError](Transport)
+      val client = Client[Encoder, Decoder, PickleType][ClientResult, ApiError](Transport)
       val api = client.wire[ApiT[ClientResult]]
     }
 

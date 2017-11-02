@@ -20,18 +20,10 @@ package object boopickle {
   }
 
   implicit class BoopickleClient(client: Client.type) {
-    def boopickle[Result[_]](
-      transport: RequestTransport[ByteBuffer, Result])(implicit
-      monad: MonadError[Result, _ >: SlothFailure]) = Client[Pickler, Pickler, ByteBuffer, Result, SlothFailure](transport)
-
-    def boopickle[Result[_], ErrorType](
-      transport: RequestTransport[ByteBuffer, Result])(implicit
-      monad: MonadError[Result, _ >: ErrorType],
-      failureIsError: SlothFailure => ErrorType) = Client[Pickler, Pickler, ByteBuffer, Result, ErrorType](transport)
+    val boopickle = Client[Pickler, Pickler, ByteBuffer]
   }
 
   implicit class BoopickleServer(server: Server.type) {
-    def boopickle[Result[_]](implicit
-      functor: Functor[Result]) = Server[Pickler, Pickler, ByteBuffer, Result]
+    val boopickle = Server[Pickler, Pickler, ByteBuffer]
   }
 }
