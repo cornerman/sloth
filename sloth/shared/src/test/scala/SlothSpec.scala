@@ -71,7 +71,6 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
           case Left(err) =>
             Future.successful(Left(SlothError(err)))
           case Right(ServerResult(event, result)) =>
-            println(s"event: $event")
             result
               .map(Right(_))
               .recover { case NonFatal(t) => Left(UnexpectedError(t.getMessage)) }
