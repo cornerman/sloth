@@ -10,8 +10,16 @@ inThisBuild(Seq(
     "-explaintypes" ::
     "-feature" ::
     "-language:_" ::
-    "-Xlint:_" ::
+    "-Xcheckinit" ::
+    "-Xfuture" ::
+    "-Xlint" ::
+    "-Yno-adapted-args" ::
+    "-Ywarn-dead-code" ::
+    "-Ywarn-extra-implicit" ::
     "-Ywarn-unused" ::
+    "-Ywarn-infer-any" ::
+    "-Ywarn-nullary-override" ::
+    "-Ywarn-nullary-unit" ::
     Nil
 ))
 
