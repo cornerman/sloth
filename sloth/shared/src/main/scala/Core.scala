@@ -2,9 +2,11 @@ package sloth.core
 
 import scala.util.control.NoStackTrace
 
-trait Serializer[Encoder[_], Decoder[_], PickleType] {
-  def serialize[T : Encoder](arg: T): PickleType
-  def deserialize[T : Decoder](arg: PickleType): Either[Throwable, T]
+trait Writer[Type, PickleType] {
+  def write(arg: Type): PickleType
+}
+trait Reader[Type, PickleType] {
+  def read(arg: PickleType): Either[Throwable, Type]
 }
 
 case class Request[T](path: List[String], payload: T)

@@ -29,14 +29,14 @@ class CirceSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server.circe[Future]
+      val server = Server[String, Future]
       val router = server.route[Api](ApiImpl)
     }
 
     object Frontend {
       import sloth.client._
 
-      val client = Client.circe[Future](Transport)
+      val client = Client[String, Future](Transport)
       val api = client.wire[Api]
     }
 

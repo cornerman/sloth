@@ -28,9 +28,11 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
   type Decoder[T] = DummyImplicit
   type PickleType = Any
 
-  implicit object AnySerializer extends Serializer[Encoder, Decoder, PickleType] {
-    override def serialize[T : Encoder](arg: T): Any = arg
-    override def deserialize[T : Decoder](arg: Any): Either[Throwable, T] = Right(arg.asInstanceOf[T])
+  implicit def anyWriter[T]: Writer[T, PickleType] = new Writer[T, PickleType] {
+    override def write(arg: T): PickleType = arg
+  }
+  implicit def anyReader[T]: Reader[T, PickleType] = new Reader[T, PickleType] {
+    override def read(arg: PickleType): Either[Throwable, T] = Right(arg.asInstanceOf[T])
   }
 
   "run simple" in {
@@ -41,14 +43,14 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server[Encoder, Decoder, PickleType][Future]
+      val server = Server[PickleType, Future]
       val router = server.route[ApiT[Future]](ApiImplFuture)
     }
 
     object Frontend {
       import sloth.client._
 
-      val client = Client[Encoder, Decoder, PickleType][Future](Transport)
+      val client = Client[PickleType, Future](Transport)
       val api = client.wire[ApiT[Future]]
     }
 
@@ -81,14 +83,14 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server[Encoder, Decoder, PickleType][ServerResult]
+      val server = Server[PickleType, ServerResult]
       val router = server.route[ApiT[ServerResult]](ApiImplResponse)
     }
 
     object Frontend {
       import sloth.client._
 
-      val client = Client[Encoder, Decoder, PickleType][ClientResult, ApiError](Transport)
+      val client = Client[PickleType, ClientResult, ApiError](Transport)
       val api = client.wire[ApiT[ClientResult]]
     }
 

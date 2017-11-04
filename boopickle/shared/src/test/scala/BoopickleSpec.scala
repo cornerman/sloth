@@ -29,14 +29,14 @@ class BoopickleSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server.boopickle[Future]
+      val server = Server[ByteBuffer, Future]
       val router = server.route[Api](ApiImpl)
     }
 
     object Frontend {
       import sloth.client._
 
-      val client = Client.boopickle[Future](Transport)
+      val client = Client[ByteBuffer, Future](Transport)
       val api = client.wire[Api]
     }
 
