@@ -13,6 +13,8 @@ trait RequestTransport[PickleType, Result[_]] {
   def apply(request: Request[PickleType]): Result[PickleType]
 }
 
+//TODO split into server and client errors
+//TODO should we catch handler code and return an unexpected error with a throwable?
 sealed trait SlothFailure extends NoStackTrace
 object SlothFailure {
   case class DeserializationError(ex: Throwable) extends SlothFailure
