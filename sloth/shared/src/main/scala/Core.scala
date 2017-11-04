@@ -9,8 +9,15 @@ trait Serializer[Encoder[_], Decoder[_], PickleType] {
 
 case class Request[T](path: List[String], payload: T)
 
+//TODO: move to client?
 trait RequestTransport[PickleType, Result[_]] {
   def apply(request: Request[PickleType]): Result[PickleType]
+}
+object RequestTransport {
+  def apply[PickleType, Result[_]](f: Request[PickleType] => Result[PickleType]) =
+    new RequestTransport[PickleType, Result] {
+      def apply(request: Request[PickleType]): Result[PickleType] = f(request)
+    }
 }
 
 //TODO split into server and client errors
