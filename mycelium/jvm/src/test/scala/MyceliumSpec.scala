@@ -70,11 +70,11 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       implicit val system = ActorSystem("server")
       implicit val materializer = ActorMaterializer()
 
-      val mycelium = WebsocketServerFlow[ByteBuffer, ByteBuffer, Event, PublishEvent, ApiError, State](config, handler)
+      val mycelium = WebsocketServerFlow[ByteBuffer, Event, PublishEvent, ApiError, State](config, handler)
 
       //TODO this test of actually running belong into mycelium project
       def run() = {
-        import akka.http.scaladsl.server.RouteResult
+        import akka.http.scaladsl.server.RouteResult._
         import akka.http.scaladsl.server.Directives._
         import akka.http.scaladsl.Http
 
@@ -82,7 +82,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
           handleWebSocketMessages(mycelium)
         }
 
-        Http().bindAndHandle(RouteResult.route2HandlerFlow(route), interface = "0.0.0.0", port = port).onComplete {
+        Http().bindAndHandle(route, interface = "0.0.0.0", port = port).onComplete {
           case Success(binding) => println(s"Server online at ${binding.localAddress}")
           case Failure(err) => println(s"Cannot start server: $err")
         }
@@ -100,7 +100,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
         def onEvents(events: Seq[Event]): Unit = {}
       }
 
-      val mycelium = WebsocketClient[ByteBuffer, ByteBuffer, Event, ApiError](config, handler)
+      val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](config, handler)
       val client = Client[ByteBuffer, Future, ApiException](mycelium)
 
       val api = client.wire[Api[Future]]
