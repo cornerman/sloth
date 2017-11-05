@@ -20,7 +20,7 @@ inThisBuild(Seq(
     "-Ywarn-infer-any" ::
     "-Ywarn-nullary-override" ::
     "-Ywarn-nullary-unit" ::
-    Nil
+        Nil
 ))
 
 resolvers += Resolver.sonatypeRepo("releases")
@@ -28,7 +28,7 @@ addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
 enablePlugins(ScalaJSPlugin)
 
 lazy val root = (project in file(".")).
-  aggregate(slothJS, slothJVM, boopickleJS, boopickleJVM, circeJS, circeJVM)
+  aggregate(slothJS, slothJVM, boopickleJS, boopickleJVM, circeJS, circeJVM, myceliumJS, myceliumJVM)
 
 lazy val sloth = crossProject.
   settings(
@@ -73,3 +73,18 @@ lazy val circe = crossProject.
 
 lazy val circeJS = circe.js
 lazy val circeJVM = circe.jvm
+
+lazy val mycelium = crossProject.
+  dependsOn(sloth).
+  dependsOn(boopickle % "test->compile").
+  settings(
+    name := "sloth-mycelium",
+    libraryDependencies ++=
+      Deps.mycelium.value ::
+      Deps.cats.kittens.value % Test ::
+      Deps.scalaTest.value % Test ::
+      Nil
+  )
+
+lazy val myceliumJS = mycelium.js
+lazy val myceliumJVM = mycelium.jvm
