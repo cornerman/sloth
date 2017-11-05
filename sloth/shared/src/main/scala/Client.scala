@@ -14,9 +14,11 @@ class Client[PickleType, Result[_], ErrorType](
 }
 
 object Client {
+  import SlothClientFailure.SlothException
+
   def apply[PickleType, Result[_]](
     transport: RequestTransport[PickleType, Result])(implicit
-    monad: MonadError[Result, _ >: SlothClientFailure]) = new Client[PickleType, Result, SlothClientFailure](transport)
+    monad: MonadError[Result, _ >: SlothException]) = new Client[PickleType, Result, SlothException](transport)
 
   def apply[PickleType, Result[_], ErrorType](
     transport: RequestTransport[PickleType, Result])(implicit

@@ -1,7 +1,5 @@
 package sloth.core
 
-import scala.util.control.NoStackTrace
-
 trait Writer[Type, PickleType] {
   def write(arg: Type): PickleType
 }
@@ -22,13 +20,15 @@ object RequestTransport {
     }
 }
 
-sealed trait SlothServerFailure extends NoStackTrace
+sealed trait SlothServerFailure
 object SlothServerFailure {
   //TODO should we catch handler code and return an unexpected error with a throwable?
   case class ReaderError(ex: Throwable) extends SlothServerFailure
   case class PathNotFound(path: List[String]) extends SlothServerFailure
+  implicit class SlothException(failure: SlothServerFailure) extends Exception(failure.toString)
 }
-sealed trait SlothClientFailure extends NoStackTrace
+sealed trait SlothClientFailure
 object SlothClientFailure {
   case class ReaderError(ex: Throwable) extends SlothClientFailure
+  implicit class SlothException(failure: SlothClientFailure) extends Exception(failure.toString)
 }
