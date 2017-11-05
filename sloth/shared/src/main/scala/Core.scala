@@ -22,10 +22,13 @@ object RequestTransport {
     }
 }
 
-//TODO split into server and client errors
-//TODO should we catch handler code and return an unexpected error with a throwable?
-sealed trait SlothFailure extends NoStackTrace
-object SlothFailure {
-  case class DeserializationError(ex: Throwable) extends SlothFailure
-  case class PathNotFound(path: List[String]) extends SlothFailure
+sealed trait SlothServerFailure extends NoStackTrace
+object SlothServerFailure {
+  //TODO should we catch handler code and return an unexpected error with a throwable?
+  case class ReaderError(ex: Throwable) extends SlothServerFailure
+  case class PathNotFound(path: List[String]) extends SlothServerFailure
+}
+sealed trait SlothClientFailure extends NoStackTrace
+object SlothClientFailure {
+  case class ReaderError(ex: Throwable) extends SlothClientFailure
 }

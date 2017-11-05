@@ -40,7 +40,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
   case class SlothError(msg: String) extends ApiError
   case class OtherError(msg: String) extends ApiError
   implicit class ApiException(error: ApiError) extends Exception(error.toString)
-  implicit def SlothFailureIsApiException(failure: SlothFailure): ApiException = SlothError(failure.toString)
+  implicit def SlothFailureIsApiException(failure: SlothClientFailure): ApiException = SlothError(failure.toString)
 
   val port = 9999
 

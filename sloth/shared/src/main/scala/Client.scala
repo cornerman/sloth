@@ -8,7 +8,7 @@ import cats.MonadError
 class Client[PickleType, Result[_], ErrorType](
   private[sloth] val transport: RequestTransport[PickleType, Result])(implicit
   private[sloth] val monad: MonadError[Result, _ >: ErrorType],
-  private[sloth] val failureIsError: SlothFailure => ErrorType) {
+  private[sloth] val failureIsError: SlothClientFailure => ErrorType) {
 
   def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result]
 }
@@ -16,10 +16,10 @@ class Client[PickleType, Result[_], ErrorType](
 object Client {
   def apply[PickleType, Result[_]](
     transport: RequestTransport[PickleType, Result])(implicit
-    monad: MonadError[Result, _ >: SlothFailure]) = new Client[PickleType, Result, SlothFailure](transport)
+    monad: MonadError[Result, _ >: SlothClientFailure]) = new Client[PickleType, Result, SlothClientFailure](transport)
 
   def apply[PickleType, Result[_], ErrorType](
     transport: RequestTransport[PickleType, Result])(implicit
     monad: MonadError[Result, _ >: ErrorType],
-    failureIsError: SlothFailure => ErrorType) = new Client[PickleType, Result, ErrorType](transport)
+    failureIsError: SlothClientFailure => ErrorType) = new Client[PickleType, Result, ErrorType](transport)
 }

@@ -62,7 +62,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     import cats.derived.functor._
 
     sealed trait ApiError
-    implicit class SlothError(failure: SlothFailure) extends ApiError
+    implicit class SlothClientError(msg: SlothClientFailure) extends ApiError
+    case class SlothServerError(msg: SlothServerFailure) extends ApiError
     case class UnexpectedError(msg: String) extends ApiError
 
     type ClientResult[T] = EitherT[Future, ApiError, T]
@@ -71,7 +72,7 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
       override def apply(request: Request[PickleType]): ClientResult[PickleType] = EitherT(
         Backend.router(request) match {
           case Left(err) =>
-            Future.successful(Left(SlothError(err)))
+            Future.successful(Left(SlothServerError(err)))
           case Right(ServerResult(event, result)) =>
             result
               .map(Right(_))

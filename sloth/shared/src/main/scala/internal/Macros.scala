@@ -133,7 +133,7 @@ object RouterMacro {
     }
 
     val defaultCase = cq"""
-      ${t.corePkg}.Request(path, _) => Left(${t.corePkg}.SlothFailure.PathNotFound(path))
+      ${t.corePkg}.Request(path, _) => Left(${t.corePkg}.SlothServerFailure.PathNotFound(path))
     """
 
     q"""

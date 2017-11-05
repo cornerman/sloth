@@ -12,7 +12,7 @@ class Server[PickleType, Result[_]](implicit
 }
 
 object Server {
-  type Router[PickleType, Result[_]] = Request[PickleType] => Either[SlothFailure, Result[PickleType]]
+  type Router[PickleType, Result[_]] = Request[PickleType] => Either[SlothServerFailure, Result[PickleType]]
 
   def apply[PickleType,Result[_]](implicit
     functor: Functor[Result]) = new Server[PickleType, Result]
