@@ -20,7 +20,7 @@ inThisBuild(Seq(
     "-Ywarn-infer-any" ::
     "-Ywarn-nullary-override" ::
     "-Ywarn-nullary-unit" ::
-        Nil
+    Nil
 ))
 
 resolvers += Resolver.sonatypeRepo("releases")
