@@ -2,7 +2,7 @@ package sloth
 
 import sloth.core._
 
-import io.circe._, io.circe.parser._, io.circe.syntax._, io.circe.shapes._
+import io.circe._, io.circe.parser._, io.circe.syntax._
 
 package object circe {
   implicit def circeWriter[T : Encoder]: Writer[T, String] = new Writer[T, String] {
