@@ -100,7 +100,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
         def onEvents(events: Seq[Event]): Unit = {}
       }
 
-      val mycelium = WebsocketClient[ByteBuffer, ByteBuffer, Event, ApiError](NativeWebsocket.akka, config, handler)
+      val mycelium = WebsocketClient[ByteBuffer, ByteBuffer, Event, ApiError](config, handler)
       val client = Client[ByteBuffer, Future, ApiException](mycelium)
 
       val api = client.wire[Api[Future]]
