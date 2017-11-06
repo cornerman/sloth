@@ -24,8 +24,6 @@ object ApiImplResponse extends Api[ServerResult, String] {
 class SlothSpec extends AsyncFreeSpec with MustMatchers {
   type ApiT[T[_]] = Api[T, String]
 
-  type Encoder[T] = DummyImplicit
-  type Decoder[T] = DummyImplicit
   type PickleType = Any
 
   implicit def anyWriter[T]: Writer[T, PickleType] = new Writer[T, PickleType] {
