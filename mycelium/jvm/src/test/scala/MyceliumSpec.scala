@@ -21,26 +21,30 @@ trait Api[Result[_]] {
   def fun(a: Int): Result[Int]
 }
 
-case class ApiResult[T](state: Future[String], events: Future[Seq[String]], result: Future[T])
-//server
-object ApiImpl extends Api[ApiResult] {
-  def fun(a: Int): ApiResult[Int] =
-    ApiResult(Future.successful("state"), Future.successful(Seq.empty), Future.successful(a))
-}
-
-class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
-
-  implicit val system = ActorSystem()
-
+object TypeHelper {
   type Event = String
   type PublishEvent = String
   type State = String
+
+  case class ApiResult[T](state: Future[State], events: Future[Seq[Event]], result: Future[T])
+  type ApiResultF[T] = Future[State] => ApiResult[T]
 
   sealed trait ApiError
   case class SlothError(msg: String) extends ApiError
   case class OtherError(msg: String) extends ApiError
   implicit class ApiException(error: ApiError) extends Exception(error.toString)
   implicit def SlothFailureIsApiException(failure: SlothClientFailure): ApiException = SlothError(failure.toString)
+}
+import TypeHelper._
+//server
+object ApiImpl extends Api[ApiResultF] {
+  def fun(a: Int): ApiResultF[Int] =
+    state => ApiResult(state, Future.successful(Seq.empty), Future.successful(a))
+}
+
+class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
+
+  implicit val system = ActorSystem()
 
   val port = 9999
 
@@ -51,17 +55,19 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       val config = ServerConfig(
         ServerConfig.Flow(bufferSize = 5, overflowStrategy = OverflowStrategy.dropNew))
 
-      val server = Server[ByteBuffer, ApiResult]
-      val router = server.route[Api[ApiResult]](ApiImpl)
+      val server = Server[ByteBuffer, ApiResultF]
+      val router = server.route[Api[ApiResultF]](ApiImpl)
 
       val handler = new RequestHandler[ByteBuffer, Event, PublishEvent, ApiError, State] {
         def onClientConnect(client: NotifiableClient[PublishEvent]): State = "empty"
         def onClientDisconnect(client: ClientIdentity, state: Future[State]): Unit = {}
         def onRequest(client: ClientIdentity, state: Future[State], path: List[String], payload: ByteBuffer): Response = {
-          //TODO: router accepts state and somehow pass state to a function?
           router(Request(path, payload)) match {
-            case Left(err) => Response(Reaction(state, Future.successful(Seq.empty[Event])), Future.successful(Left(SlothError(err.toString))))
-            case Right(res) => Response(Reaction(res.state, res.events), res.result.map(Right(_)))
+            case Left(err) =>
+              Response(Reaction(state, Future.successful(Seq.empty[Event])), Future.successful(Left(SlothError(err.toString))))
+            case Right(fun) =>
+              val res = fun(state)
+              Response(Reaction(res.state, res.events), res.result.map(Right(_)))
           }
         }
         def onEvent(client: ClientIdentity, state: Future[State], event: PublishEvent): Reaction = ???
