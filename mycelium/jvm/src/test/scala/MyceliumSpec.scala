@@ -45,6 +45,7 @@ object ApiImpl extends Api[ApiResultF] {
 class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
 
   implicit val system = ActorSystem()
+  implicit val materializer = ActorMaterializer()
 
   val port = 9999
 
@@ -72,8 +73,6 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
         }
         def onEvent(client: ClientIdentity, state: Future[State], event: PublishEvent): Reaction = ???
       }
-
-      implicit val materializer = ActorMaterializer()
 
       val mycelium = WebsocketServerFlow[ByteBuffer, Event, PublishEvent, ApiError, State](config, handler)
 
