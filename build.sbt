@@ -1,8 +1,17 @@
 inThisBuild(Seq(
   organization := "com.github.cornerman",
+  version      := "0.1.0-SNAPSHOT",
+
   scalaVersion := "2.12.4",
   crossScalaVersions := Seq("2.11.11", "2.12.4"),
-  version      := "0.1.0-SNAPSHOT",
+
+  resolvers ++= (
+    ("jitpack" at "https://jitpack.io") ::
+    Nil
+  )
+))
+
+lazy val commonSettings = Seq(
   scalacOptions ++=
     "-encoding" :: "UTF-8" ::
     "-unchecked" ::
@@ -13,25 +22,35 @@ inThisBuild(Seq(
     "-Xcheckinit" ::
     "-Xfuture" ::
     "-Xlint" ::
+    "-Ypartial-unification" ::
     "-Yno-adapted-args" ::
-    "-Ywarn-dead-code" ::
-    "-Ywarn-extra-implicit" ::
-    "-Ywarn-unused" ::
     "-Ywarn-infer-any" ::
+    "-Ywarn-value-discard" ::
     "-Ywarn-nullary-override" ::
     "-Ywarn-nullary-unit" ::
-    Nil
-))
+    "-Ywarn-unused" ::
+    Nil,
 
-resolvers += Resolver.sonatypeRepo("releases")
-addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
+  scalacOptions ++= {
+    CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((2, 12)) =>
+        "-Ywarn-extra-implicit" ::
+        Nil
+      case _ =>
+        Nil
+    }
+  }
+)
+
 enablePlugins(ScalaJSPlugin)
 
-lazy val root = (project in file(".")).
-  aggregate(slothJS, slothJVM, boopickleJS, boopickleJVM, circeJS, circeJVM, myceliumJS, myceliumJVM)
+lazy val root = (project in file("."))
+  .settings(commonSettings)
+  .aggregate(slothJS, slothJVM, boopickleJS, boopickleJVM, circeJS, circeJVM, myceliumJS, myceliumJVM)
 
-lazy val sloth = crossProject.
-  settings(
+lazy val sloth = crossProject
+  .settings(commonSettings)
+  .settings(
     name := "sloth",
     libraryDependencies ++=
       Deps.scalaReflect.value % scalaVersion.value ::
@@ -45,9 +64,10 @@ lazy val sloth = crossProject.
 lazy val slothJS = sloth.js
 lazy val slothJVM = sloth.jvm
 
-lazy val boopickle = crossProject.
-  dependsOn(sloth).
-  settings(
+lazy val boopickle = crossProject
+  .dependsOn(sloth)
+  .settings(commonSettings)
+  .settings(
     name := "sloth-boopickle",
     libraryDependencies ++=
       Deps.boopickle.value ::
@@ -58,9 +78,10 @@ lazy val boopickle = crossProject.
 lazy val boopickleJS = boopickle.js
 lazy val boopickleJVM = boopickle.jvm
 
-lazy val circe = crossProject.
-  dependsOn(sloth).
-  settings(
+lazy val circe = crossProject
+  .dependsOn(sloth)
+  .settings(commonSettings)
+  .settings(
     name := "sloth-circe",
     libraryDependencies ++=
       Deps.circe.core.value ::
@@ -74,10 +95,11 @@ lazy val circe = crossProject.
 lazy val circeJS = circe.js
 lazy val circeJVM = circe.jvm
 
-lazy val mycelium = crossProject.
-  dependsOn(sloth).
-  dependsOn(boopickle % "test->compile").
-  settings(
+lazy val mycelium = crossProject
+  .dependsOn(sloth)
+  .dependsOn(boopickle % "test->compile")
+  .settings(commonSettings)
+  .settings(
     name := "sloth-mycelium",
     libraryDependencies ++=
       Deps.mycelium.value ::
