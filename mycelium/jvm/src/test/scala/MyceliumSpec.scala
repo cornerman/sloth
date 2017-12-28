@@ -53,14 +53,13 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val config = ServerConfig(
-        ServerConfig.Flow(bufferSize = 5, overflowStrategy = OverflowStrategy.dropNew))
+      val config = ServerConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
 
       val server = Server[ByteBuffer, ApiResultF]
       val router = server.route[Api[ApiResultF]](ApiImpl)
 
       val handler = new RequestHandler[ByteBuffer, Event, PublishEvent, ApiError, State] {
-        def onClientConnect(client: NotifiableClient[PublishEvent]): State = "empty"
+        def onClientConnect(client: NotifiableClient[PublishEvent]): Reaction = Reaction(Future.successful("empty"), Future.successful(Seq.empty))
         def onClientDisconnect(client: ClientIdentity, state: Future[State]): Unit = {}
         def onRequest(client: ClientIdentity, state: Future[State], path: List[String], payload: ByteBuffer): Response = {
           router(Request(path, payload)) match {
@@ -96,15 +95,16 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
     object Frontend {
       import sloth.client._
 
-      val config = ClientConfig(
-        ClientConfig.Request(timeoutMillis = 5 * 1000))
+      val config = ClientConfig(requestTimeoutMillis = 5 * 1000)
+      val akkaConfig = AkkaWebsocketConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
 
       val handler = new IncidentHandler[Event] {
         def onConnect(reconnect: Boolean): Unit = {}
         def onEvents(events: Seq[Event]): Unit = {}
       }
 
-      val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](config, handler)
+      val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](
+        AkkaWebsocketConnection(akkaConfig), config, handler)
       val client = Client[ByteBuffer, Future, ApiException](mycelium)
 
       val api = client.wire[Api[Future]]
