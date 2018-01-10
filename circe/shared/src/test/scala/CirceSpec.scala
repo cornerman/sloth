@@ -7,7 +7,7 @@ import sloth.core._
 import sloth.circe._
 
 import cats.implicits._
-import io.circe._, io.circe.parser._, io.circe.syntax._, io.circe.shapes._
+import io.circe.shapes._
 
 //shared
 trait Api {

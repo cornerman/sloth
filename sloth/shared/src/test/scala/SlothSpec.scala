@@ -86,7 +86,7 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
         override def apply(request: Request[PickleType]): ClientResult[PickleType] = EitherT(
           Backend.router(request) match {
             case Left(err) => Future.successful(Left(SlothServerError(err)))
-            case Right(ServerResult(event, result)) =>
+            case Right(ServerResult(event@_, result)) =>
               result.map(Right(_)).recover { case NonFatal(t) => Left(UnexpectedError(t.getMessage)) }
           })
       }
