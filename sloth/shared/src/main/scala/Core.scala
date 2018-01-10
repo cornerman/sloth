@@ -22,10 +22,12 @@ object RequestTransport {
 
 sealed trait SlothServerFailure
 object SlothServerFailure {
-  //TODO should we catch handler code and return an unexpected error with a throwable?
+  //TODO should we catch handler code and return an unexpected error with a throwable? maybe same for client failure?
+  // case class UnexpectedError(ex: Throwable) extends SlothServerFailure
   case class ReaderError(ex: Throwable) extends SlothServerFailure
   implicit class SlothException(failure: SlothServerFailure) extends Exception(failure.toString)
 }
+//TODO: merge with ServerFailure
 sealed trait SlothClientFailure
 object SlothClientFailure {
   case class ReaderError(ex: Throwable) extends SlothClientFailure
