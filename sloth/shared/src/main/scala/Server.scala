@@ -11,7 +11,7 @@ class Server[PickleType, Result[_]](implicit private[sloth] val functor: Functor
 }
 
 object Server {
-  type Router[PickleType, Result[_]] = Request[PickleType] => Either[SlothServerFailure, Result[PickleType]]
+  type Router[PickleType, Result[_]] = PartialFunction[Request[PickleType], Either[SlothServerFailure, Result[PickleType]]]
 
   def apply[PickleType, Result[_]](implicit functor: Functor[Result]) = new Server[PickleType, Result]
 }

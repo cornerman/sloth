@@ -132,10 +132,6 @@ object RouterMacro {
       """
     }
 
-    val defaultCase = cq"""
-      ${t.corePkg}.Request(path, _) => Left(${t.corePkg}.SlothServerFailure.PathNotFound(path))
-    """
-
     q"""
       import shapeless._, syntax.std.function._
 
@@ -143,7 +139,6 @@ object RouterMacro {
 
       {
         case ..$methodCases
-        case $defaultCase
       } : ${t.serverPkg}.Server.Router[${pickleTypeTag.tpe}, ${resultTag.tpe}]
     """
   }
