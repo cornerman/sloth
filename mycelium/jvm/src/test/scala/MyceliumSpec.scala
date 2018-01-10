@@ -23,7 +23,6 @@ trait Api[Result[_]] {
 
 object TypeHelper {
   type Event = String
-  type PublishEvent = String
   type State = String
 
   case class ApiResult[T](state: Future[State], events: Future[Seq[Event]], result: Future[T])
@@ -58,22 +57,20 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       val server = Server[ByteBuffer, ApiResultF]
       val router = server.route[Api[ApiResultF]](ApiImpl)
 
-      val handler = new RequestHandler[ByteBuffer, Event, PublishEvent, ApiError, State] {
-        def onClientConnect(client: NotifiableClient[PublishEvent]): Reaction = Reaction(Future.successful("empty"), Future.successful(Seq.empty))
-        def onClientDisconnect(client: ClientIdentity, state: Future[State]): Unit = {}
-        def onRequest(client: ClientIdentity, state: Future[State], path: List[String], payload: ByteBuffer): Response = {
+      val handler = new SimpleRequestHandler[ByteBuffer, Event, ApiError, State] {
+        def onClientConnect(): Reaction = Reaction(Future.successful("empty"), Future.successful(Seq.empty))
+        def onRequest(state: Future[State], path: List[String], payload: ByteBuffer): Response = {
           router(Request(path, payload)) match {
             case Left(err) =>
-              Response(Reaction(state, Future.successful(Seq.empty[Event])), Future.successful(Left(SlothError(err.toString))))
+              Response(Future.successful(Left(SlothError(err.toString))), Reaction(state, Future.successful(Seq.empty[Event])))
             case Right(fun) =>
               val res = fun(state)
-              Response(Reaction(res.state, res.events), res.result.map(Right(_)))
+              Response(res.result.map(Right(_)), Reaction(res.state, res.events))
           }
         }
-        def onEvent(client: ClientIdentity, state: Future[State], event: PublishEvent): Reaction = ???
       }
 
-      val mycelium = WebsocketServerFlow[ByteBuffer, Event, PublishEvent, ApiError, State](config, handler)
+      val mycelium = WebsocketServerFlow(config, handler)
 
       //TODO this test of actually running belong into mycelium project
       def run() = {
