@@ -20,7 +20,9 @@ object Client {
 
   def apply[PickleType, Result[_]](
     transport: RequestTransport[PickleType, Result]
-  )(implicit monad: MonadError[Result, _ >: SlothException]) = new Client[PickleType, Result, SlothException](transport)
+  )(implicit
+    monad: MonadError[Result, _ >: SlothException]
+  ) = apply[PickleType, Result, SlothException](transport)
 
   def apply[PickleType, Result[_], ErrorType](
     transport: RequestTransport[PickleType, Result]
