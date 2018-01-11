@@ -96,14 +96,17 @@ object TraitMacro {
       """
     }
 
+    //TODO why does `new Trait { ..$methods }` not work if methods is empty? cannot instaniate, trait is abstract.
     q"""
       import shapeless._
 
       val impl = new ${t.internalPkg}.ClientImpl(${t.macroThis})
 
-      new ${traitTag.tpe.finalResultType} {
+      class anon extends ${traitTag.tpe.finalResultType} {
         ..$methodImpls
       }
+
+      new anon()
     """
   }
 }

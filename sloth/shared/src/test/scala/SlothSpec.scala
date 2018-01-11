@@ -6,6 +6,8 @@ import scala.util.control.NonFatal
 import sloth.core._
 import cats.implicits._
 
+trait EmptyApi
+
 //shared
 trait Api[Result[_]] {
   def fun(a: Int): Result[Int]
@@ -56,6 +58,7 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
 
       val client = Client[PickleType, Future](Transport)
       val api = client.wire[Api[Future]]
+      val emptyApi = client.wire[EmptyApi]
     }
 
     Frontend.api.fun(1).map(_ mustEqual 1)
