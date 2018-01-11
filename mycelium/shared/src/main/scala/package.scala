@@ -23,8 +23,8 @@ package object mycelium {
 
     def apply(request: Request[PickleType]): Future[PickleType] = {
       client.send(request.path, request.payload).map {
-        case Left(err) => throw err
         case Right(res) => res
+        case Left(err) => throw err
       }
     }
   }

@@ -45,8 +45,8 @@ class Translator[C <: Context](val c: C) {
       .flatMap(methods => eitherSeq(validateAllMethods(methods)))
 
     validatedType match {
-      case Left(errors) => abort(s"type '$tpe' contains unsupported methods: ${errors.mkString(", ")}")
       case Right(methods) => methods
+      case Left(errors) => abort(s"type '$tpe' contains unsupported methods: ${errors.mkString(", ")}")
     }
   }
 
