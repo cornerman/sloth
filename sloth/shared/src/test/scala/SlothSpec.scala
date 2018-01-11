@@ -30,15 +30,7 @@ object ApiImplFunResponse extends Api[ServerFunResult] {
 }
 
 class SlothSpec extends AsyncFreeSpec with MustMatchers {
-
-  type PickleType = Any
-
-  implicit def anyWriter[T]: Writer[T, PickleType] = new Writer[T, PickleType] {
-    override def write(arg: T): PickleType = arg
-  }
-  implicit def anyReader[T]: Reader[T, PickleType] = new Reader[T, PickleType] {
-    override def read(arg: PickleType): Either[Throwable, T] = Right(arg.asInstanceOf[T])
-  }
+  import TestSerializer._
 
   "run simple" in {
     object Backend {
