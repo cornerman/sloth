@@ -20,5 +20,5 @@ object Deps {
     val parser = dep("io.circe" %%% "circe-parser" % version)
     val shapes = dep("io.circe" %%% "circe-shapes" % version)
   }
-  val mycelium = dep("com.github.cornerman" % "mycelium" % "f30587e")
+  val mycelium = dep("com.github.cornerman" % "mycelium" % "ee12cf2")
 }
