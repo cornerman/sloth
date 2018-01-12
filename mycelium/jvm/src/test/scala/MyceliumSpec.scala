@@ -12,7 +12,6 @@ import mycelium.server._
 import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.actor.ActorSystem
 import cats.implicits._
-import cats.derived.functor._
 import boopickle.Default._, java.nio.ByteBuffer
 import scala.util.{Success, Failure}
 
@@ -26,7 +25,7 @@ object TypeHelper {
   type State = String
 
   case class ApiResult[T](state: Future[State], events: Future[Seq[Event]], result: Future[T])
-  type ApiResultF[T] = Future[State] => ApiResult[T]
+  type ApiResultFun[T] = Future[State] => ApiResult[T]
 
   sealed trait ApiError
   case class SlothError(msg: String) extends ApiError
@@ -36,12 +35,15 @@ object TypeHelper {
 }
 import TypeHelper._
 //server
-object ApiImpl extends Api[ApiResultF] {
-  def fun(a: Int): ApiResultF[Int] =
+object ApiImpl extends Api[ApiResultFun] {
+  def fun(a: Int): ApiResultFun[Int] =
     state => ApiResult(state, Future.successful(Seq.empty), Future.successful(a))
 }
 
 class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
+
+  implicit val apiResultFunctor = cats.derive.functor[ApiResult]
+  implicit val apiResultFunFunctor = cats.derive.functor[ApiResultFun]
 
   implicit val system = ActorSystem()
   implicit val materializer = ActorMaterializer()
@@ -54,8 +56,8 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
 
       val config = ServerConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
 
-      val server = Server[ByteBuffer, ApiResultF]
-      val router = server.route[Api[ApiResultF]](ApiImpl)
+      val server = Server[ByteBuffer, ApiResultFun]
+      val router = server.route[Api[ApiResultFun]](ApiImpl)
 
       val handler = new SimpleRequestHandler[ByteBuffer, Event, ApiError, State] {
         def onClientConnect(): Reaction = Reaction(Future.successful("empty"), Future.successful(Seq.empty))

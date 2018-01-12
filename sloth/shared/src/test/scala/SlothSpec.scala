@@ -32,6 +32,9 @@ object ApiImplFunResponse extends Api[ServerFunResult] {
 class SlothSpec extends AsyncFreeSpec with MustMatchers {
   import TestSerializer._
 
+  implicit val serverResultFunctor = cats.derive.functor[ServerResult]
+  implicit val serverFunResultFunctor = cats.derive.functor[ServerFunResult]
+
   "run simple" in {
     object Backend {
       import sloth.server._
@@ -58,7 +61,6 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
 
  "run different result types" in {
     import cats.data.EitherT
-    import cats.derived.functor._
 
     sealed trait ApiError
     implicit class SlothClientError(msg: SlothClientFailure) extends ApiError
@@ -94,7 +96,6 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
   }
 
  "run different result types with fun" in {
-    import cats.derived.functor._
 
     object Backend {
       import sloth.server._
