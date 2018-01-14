@@ -29,9 +29,7 @@ object TypeHelper {
 
   sealed trait ApiError
   case class SlothError(msg: String) extends ApiError
-  case class OtherError(msg: String) extends ApiError
   implicit class ApiException(error: ApiError) extends Exception(error.toString)
-  implicit def SlothFailureIsApiException(failure: SlothClientFailure): ApiException = SlothError(failure.toString)
 }
 import TypeHelper._
 //server
@@ -60,14 +58,14 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       val router = server.route[Api[ApiResultFun]](ApiImpl)
 
       val handler = new SimpleRequestHandler[ByteBuffer, Event, ApiError, State] {
-        def onClientConnect(): InitialState = InitialState(Future.successful("empty"))
-        def onRequest(state: Future[State], path: List[String], payload: ByteBuffer): Response = {
+        def initialReaction = Reaction(Future.successful("empty"))
+        def onRequest(state: Future[State], path: List[String], payload: ByteBuffer) = {
           router(Request(path, payload)) match {
             case Right(fun) =>
               val res = fun(state)
-              Response(res.result.map(Right(_)), state = Some(res.state), events = res.events)
+              Response(res.result.map(Right(_)), Reaction(res.state, res.events))
             case Left(err) =>
-              Response(Future.successful(Left(SlothError(err.toString))))
+              Response(Future.successful(Left(SlothError(err.toString))), Reaction(state))
           }
         }
       }
@@ -104,7 +102,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
 
       val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](
         AkkaWebsocketConnection(akkaConfig), config, handler)
-      val client = Client[ByteBuffer, Future, ApiException](mycelium)
+      val client = Client[ByteBuffer, Future](mycelium)
 
       val api = client.wire[Api[Future]]
 
