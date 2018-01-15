@@ -14,18 +14,21 @@ class Translator[C <: Context](val c: C) {
   private def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
   private def valid(check: => Boolean, errorMsg: => String): Either[String, Unit] = Either.cond(check, (), errorMsg)
-  private def validateMethod(expectedReturnType: Type, symbol: MethodSymbol, methodType: Type): Either[String, (MethodSymbol, MethodType)] = for {
-    _ <- valid(symbol.typeParams.isEmpty, s"method ${symbol.name} has type parameters")
-    method = methodType.asInstanceOf[MethodType]
+  private def validateMethod(expectedReturnType: Type, symbol: MethodSymbol, methodType: Type): Either[String, (MethodSymbol, Type)] = for {
+    _ <- methodType match {
+      case _: MethodType | _: NullaryMethodType => Right(())
+      case _: PolyType => Left(s"method ${symbol.name} has type parameters")
+      case _ => Left(s"method ${symbol.name} has unsupported type")
+    }
     //TODO: we should support multiple param lists, either with a nested hlist or split or arg count?
-    _ <- valid(method.paramLists.size < 2, s"method ${symbol.name} has more than one parameter list: ${method.paramLists}")
-    methodResult = method.finalResultType.typeConstructor
+    _ <- valid(methodType.paramLists.size < 2, s"method ${symbol.name} has more than one parameter list: ${methodType.paramLists}")
+    methodResult = methodType.finalResultType.typeConstructor
     returnResult = expectedReturnType.finalResultType.typeConstructor
     _ <- valid(methodResult <:< returnResult, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
-  } yield (symbol, method)
+  } yield (symbol, methodType)
 
   //TODO rename overloaded methods to fun1, fun2, fun3 or append TypeSignature instead of number?
-  private def validateAllMethods(methods: List[(MethodSymbol, MethodType)]): List[Either[String, (MethodSymbol, MethodType)]] =
+  private def validateAllMethods(methods: List[(MethodSymbol, Type)]): List[Either[String, (MethodSymbol, Type)]] =
     methods.groupBy(_._1.name).map {
       case (_, x :: Nil) => Right(x)
       case (k, _) => Left(s"method $k is overloaded")
@@ -38,7 +41,7 @@ class Translator[C <: Context](val c: C) {
     if symbol.isAbstract
   } yield (symbol, symbol.typeSignatureIn(tpe))
 
-  def supportedMethodsInType(tpe: Type, expectedReturnType: Type): List[(MethodSymbol, MethodType)] = {
+  def supportedMethodsInType(tpe: Type, expectedReturnType: Type): List[(MethodSymbol, Type)] = {
     val methods = abtractMethodsInType(tpe)
     val validatedMethods = methods.map { case (sym, tpe) => validateMethod(expectedReturnType, sym, tpe) }
     val validatedType = eitherSeq(validatedMethods)
@@ -55,14 +58,14 @@ class Translator[C <: Context](val c: C) {
     m.name.toString ::
     Nil
 
-  def paramsAsValDefs(m: MethodType): List[List[ValDef]] =
+  def paramsAsValDefs(m: Type): List[List[ValDef]] =
     m.paramLists.map(_.map(p => q"val ${p.name.toTermName}: ${p.typeSignature}"))
 
   //TODO multiple param lists?
-  def paramValuesAsHList(m: MethodType): Tree =
+  def paramValuesAsHList(m: Type): Tree =
     m.paramLists.flatten.reverse.foldLeft[Tree](q"HNil")((a, b) => q"${b.name.toTermName} :: $a")
 
-  def paramTypesAsHList(m: MethodType): Tree =
+  def paramTypesAsHList(m: Type): Tree =
     m.paramLists.flatten.reverse.foldLeft[Tree](tq"HNil")((a, b) => tq"${b.typeSignature} :: $a")
 }
 
