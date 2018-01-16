@@ -60,13 +60,16 @@ class Translator[C <: Context](val c: C) {
     m.paramLists.map(_.map(p => q"val ${p.name.toTermName}: ${p.typeSignature}"))
 
   def paramValuesAsHList(m: Type): Tree =
-    treesAsHList(m.paramLists.map(list => treesAsHList(list.map(a => q"${a.name.toTermName}"))))
+    valuesAsHList(m.paramLists.map(list => valuesAsHList(list.map(a => q"${a.name.toTermName}"))))
 
   def paramTypesAsHList(m: Type): Tree =
-    treesAsHList(m.paramLists.map(list => treesAsHList(list.map(a => tq"${a.typeSignature}"))))
+    typesAsHList(m.paramLists.map(list => typesAsHList(list.map(a => tq"${a.typeSignature}"))))
 
-  def treesAsHList[T](list: List[Tree]): Tree =
+  def valuesAsHList[T](list: List[Tree]): Tree =
     list.foldRight[Tree](q"HNil")((b, a) => q"$b :: $a")
+
+  def typesAsHList[T](list: List[Tree]): Tree =
+    list.foldRight[Tree](tq"HNil")((b, a) => tq"$b :: $a")
 }
 
 object Translator {
