@@ -60,10 +60,10 @@ class Translator[C <: Context](val c: C) {
     m.paramLists.map(_.map(p => q"val ${p.name.toTermName}: ${p.typeSignature}"))
 
   def paramValuesAsHList(m: Type): Tree =
-    treesAsHList(m.paramLists.map(list => treesAsHList(list.map(a => q"$a"))))
+    treesAsHList(m.paramLists.map(list => treesAsHList(list.map(a => q"${a.name.toTermName}"))))
 
   def paramTypesAsHList(m: Type): Tree =
-    treesAsHList(m.paramLists.map(list => treesAsHList(list.map(a => tq"$a"))))
+    treesAsHList(m.paramLists.map(list => treesAsHList(list.map(a => tq"${a.typeSignature}"))))
 
   def treesAsHList[T](list: List[Tree]): Tree =
     list.foldRight[Tree](q"HNil")((b, a) => q"$b :: $a")
@@ -128,7 +128,7 @@ object RouterMacro {
     val methodCases = validMethods.map { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
       val paramListType = t.paramTypesAsHList(method)
-      val argParams = method.paramLists.zipWithIndex.map { case (l, i) => List.tabulate(l.size)(j => q"(args($i))($j)") }
+      val argParams = method.paramLists.zipWithIndex.map { case (l, i) => List.tabulate(l.size)(j => q"{ val a = args($i); a($j) }") }
       val innerReturnType = method.finalResultType.typeArgs.head
 
       cq"""
