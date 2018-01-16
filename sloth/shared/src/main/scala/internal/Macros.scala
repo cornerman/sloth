@@ -20,8 +20,6 @@ class Translator[C <: Context](val c: C) {
       case _: PolyType => Left(s"method ${symbol.name} has type parameters")
       case _ => Left(s"method ${symbol.name} has unsupported type")
     }
-    //TODO: we should support multiple param lists, either with a nested hlist or split or arg count?
-    _ <- valid(methodType.paramLists.size < 2, s"method ${symbol.name} has more than one parameter list: ${methodType.paramLists}")
     methodResult = methodType.finalResultType.typeConstructor
     returnResult = expectedReturnType.finalResultType.typeConstructor
     _ <- valid(methodResult <:< returnResult, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
@@ -61,12 +59,14 @@ class Translator[C <: Context](val c: C) {
   def paramsAsValDefs(m: Type): List[List[ValDef]] =
     m.paramLists.map(_.map(p => q"val ${p.name.toTermName}: ${p.typeSignature}"))
 
-  //TODO multiple param lists?
   def paramValuesAsHList(m: Type): Tree =
-    m.paramLists.flatten.reverse.foldLeft[Tree](q"HNil")((a, b) => q"${b.name.toTermName} :: $a")
+    treesAsHList(m.paramLists.map(list => treesAsHList(list.map(a => q"$a"))))
 
   def paramTypesAsHList(m: Type): Tree =
-    m.paramLists.flatten.reverse.foldLeft[Tree](tq"HNil")((a, b) => tq"${b.typeSignature} :: $a")
+    treesAsHList(m.paramLists.map(list => treesAsHList(list.map(a => tq"$a"))))
+
+  def treesAsHList[T](list: List[Tree]): Tree =
+    list.foldRight[Tree](q"HNil")((b, a) => q"$b :: $a")
 }
 
 object Translator {
@@ -99,7 +99,7 @@ object TraitMacro {
       """
     }
 
-    //TODO why does `new Trait { ..$methods }` not work if methods is empty? cannot instaniate, trait is abstract.
+    //TODO why does `new Trait { ..$methods }` not work if methods is empty? cannot instaniate, trait is abstract: https://github.com/scala/bug/issues/10691
     q"""
       import shapeless._
 
@@ -128,18 +128,19 @@ object RouterMacro {
     val methodCases = validMethods.map { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
       val paramListType = t.paramTypesAsHList(method)
+      val argParams = method.paramLists.zipWithIndex.map { case (l, i) => List.tabulate(l.size)(j => q"(args($i))($j)") }
       val innerReturnType = method.finalResultType.typeArgs.head
 
       cq"""
         ${t.corePkg}.Request($path, payload) =>
           impl.execute[$paramListType, $innerReturnType](payload) { args =>
-            ($value.${symbol.name.toTermName} _).toProduct(args)
+            $value.${symbol.name.toTermName}(...$argParams)
           }
       """
     }
 
     q"""
-      import shapeless._, syntax.std.function._
+      import shapeless._
 
       val impl = new ${t.internalPkg}.ServerImpl(${t.macroThis})
 

@@ -12,18 +12,21 @@ trait EmptyApi
 trait Api[Result[_]] {
   def simple: Result[Int]
   def fun(a: Int): Result[Int]
+  def multi(a: Int)(b: Int): Result[Int]
 }
 
 //server
 object ApiImplFuture extends Api[Future] {
   def simple: Future[Int] = Future.successful(1)
   def fun(a: Int): Future[Int] = Future.successful(a)
+  def multi(a: Int)(b: Int): Future[Int] = Future.successful(a)
 }
 //or
 case class ServerResult[T](event: String, result: Future[T])
 object ApiImplResponse extends Api[ServerResult] {
   def simple: ServerResult[Int] = ServerResult("peter", Future.successful(1))
   def fun(a: Int): ServerResult[Int] = ServerResult("hans", Future.successful(a))
+  def multi(a: Int)(b: Int): ServerResult[Int] = ServerResult("hans", Future.successful(a + b))
 }
 //or
 object TypeHelper { type ServerFunResult[T] = Int => ServerResult[T] }
@@ -31,6 +34,7 @@ import TypeHelper._
 object ApiImplFunResponse extends Api[ServerFunResult] {
   def simple: ServerFunResult[Int] = i => ServerResult("peter", Future.successful(i))
   def fun(a: Int): ServerFunResult[Int] = i => ServerResult("hans", Future.successful(a + i))
+  def multi(a: Int)(b: Int): ServerFunResult[Int] = i => ServerResult("hans", Future.successful(a + b + i))
 }
 
 class SlothSpec extends AsyncFreeSpec with MustMatchers {
