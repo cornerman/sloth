@@ -22,7 +22,7 @@ class Client[PickleType, Result[_], ErrorType](
   private[sloth] val failureIsError: ClientFailure => ErrorType //TODO typeclass for failure
 ) {
 
-  def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result, ErrorType]
+  def wire[T](implicit pathMapper: PathMapper): T = macro TraitMacro.impl[T, PickleType, Result, ErrorType]
 }
 
 object Client {

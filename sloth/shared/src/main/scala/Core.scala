@@ -2,6 +2,17 @@ package sloth.core
 
 case class Request[T](path: List[String], payload: T)
 
+trait PathMapper {
+  def apply(path: List[String]): List[String]
+}
+object PathMapper {
+  def apply(f: List[String] => List[String]) = new PathMapper {
+    def apply(path: List[String]): List[String] = f(path)
+  }
+
+  implicit def identityPathMapper = PathMapper(p => p)
+}
+
 sealed trait ServerFailure
 object ServerFailure {
   case class PathNotFound(path: List[String]) extends ServerFailure

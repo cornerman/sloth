@@ -81,8 +81,11 @@ object Translator {
 }
 
 object TraitMacro {
+  import sloth.core.PathMapper
+
   def impl[Trait, PickleType, Result[_], ErrorType]
     (c: Context)
+    (pathMapper: c.Expr[PathMapper])
     (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = Translator(c) { t =>
     import c.universe._
 
@@ -97,7 +100,8 @@ object TraitMacro {
 
       q"""
         override def ${symbol.name}(...$parameters): ${method.finalResultType} = {
-          impl.execute[$paramListType, $innerReturnType]($path, $paramListValue)
+          val path = pathMapper($path)
+          impl.execute[$paramListType, $innerReturnType](path, $paramListValue)
         }
       """
     }
@@ -106,6 +110,7 @@ object TraitMacro {
     q"""
       import shapeless._
 
+      val pathMapper = $pathMapper
       val impl = new ${t.internalPkg}.ClientImpl(${t.macroThis})
 
       new ${traitTag.tpe.finalResultType} {
@@ -117,10 +122,12 @@ object TraitMacro {
 
 object RouterMacro {
   import sloth.server.Router
+  import sloth.core.PathMapper
 
   def impl[Trait, PickleType, Result[_]]
     (c: Context)
     (value: c.Expr[Trait])
+    (pathMapper: c.Expr[PathMapper])
     (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Router[PickleType, Result]] = Translator(c) { t =>
     import c.universe._
 
@@ -144,10 +151,11 @@ object RouterMacro {
       import shapeless._
 
       val value = $value
+      val pathMapper = $pathMapper
       val impl = new ${t.internalPkg}.ServerImpl(${t.macroThis})
 
       new ${t.serverPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe}] {
-        override def apply(request: ${t.corePkg}.Request[${pickleTypeTag.tpe}]) = request match {
+        override def apply(request: ${t.corePkg}.Request[${pickleTypeTag.tpe}]) = request.copy(path = pathMapper(request.path)) match {
           case ..$methodCases
           case other => Left(${t.corePkg}.ServerFailure.PathNotFound(other.path))
         }

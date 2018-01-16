@@ -17,7 +17,7 @@ trait Router[PickleType, Result[_]] { router =>
 
 class Server[PickleType, Result[_]](implicit private[sloth] val functor: Functor[Result]) {
 
-  def route[T](value: T): Router[PickleType, Result] = macro RouterMacro.impl[T, PickleType, Result]
+  def route[T](value: T)(implicit pathMapper: PathMapper): Router[PickleType, Result] = macro RouterMacro.impl[T, PickleType, Result]
 }
 
 object Server {
