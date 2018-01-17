@@ -46,6 +46,10 @@ enablePlugins(ScalaJSPlugin)
 lazy val root = (project in file("."))
   .settings(commonSettings)
   .aggregate(slothJS, slothJVM)
+  .settings(
+    publish := {},
+    publishLocal := {}
+  )
 
 lazy val sloth = crossProject
   .settings(commonSettings)
