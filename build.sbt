@@ -45,7 +45,7 @@ enablePlugins(ScalaJSPlugin)
 
 lazy val root = (project in file("."))
   .settings(commonSettings)
-  .aggregate(slothJS, slothJVM, boopickleJS, boopickleJVM, circeJS, circeJVM, myceliumJS, myceliumJVM)
+  .aggregate(slothJS, slothJVM)
 
 lazy val sloth = crossProject
   .settings(commonSettings)
@@ -55,6 +55,14 @@ lazy val sloth = crossProject
       Deps.scalaReflect.value % scalaVersion.value ::
       Deps.shapeless.value ::
       Deps.cats.core.value ::
+
+      Deps.boopickle.value % Optional ::
+      Deps.circe.core.value % Optional ::
+      Deps.circe.parser.value % Optional ::
+      Deps.circe.generic.value % Optional ::
+      Deps.circe.shapes.value % Optional ::
+      Deps.mycelium.value % Optional ::
+
       Deps.cats.kittens.value % Test ::
       Deps.scalaTest.value % Test ::
       Nil
@@ -62,50 +70,3 @@ lazy val sloth = crossProject
 
 lazy val slothJS = sloth.js
 lazy val slothJVM = sloth.jvm
-
-lazy val boopickle = crossProject
-  .dependsOn(sloth)
-  .settings(commonSettings)
-  .settings(
-    name := "sloth-boopickle",
-    libraryDependencies ++=
-      Deps.boopickle.value ::
-      Deps.scalaTest.value % Test ::
-      Nil
-  )
-
-lazy val boopickleJS = boopickle.js
-lazy val boopickleJVM = boopickle.jvm
-
-lazy val circe = crossProject
-  .dependsOn(sloth)
-  .settings(commonSettings)
-  .settings(
-    name := "sloth-circe",
-    libraryDependencies ++=
-      Deps.circe.core.value ::
-      Deps.circe.parser.value ::
-      Deps.circe.generic.value ::
-      Deps.circe.shapes.value ::
-      Deps.scalaTest.value % Test ::
-      Nil
-  )
-
-lazy val circeJS = circe.js
-lazy val circeJVM = circe.jvm
-
-lazy val mycelium = crossProject
-  .dependsOn(sloth)
-  .dependsOn(boopickle % "test->compile")
-  .settings(commonSettings)
-  .settings(
-    name := "sloth-mycelium",
-    libraryDependencies ++=
-      Deps.mycelium.value ::
-      Deps.cats.kittens.value % Test ::
-      Deps.scalaTest.value % Test ::
-      Nil
-  )
-
-lazy val myceliumJS = mycelium.js
-lazy val myceliumJVM = mycelium.jvm
