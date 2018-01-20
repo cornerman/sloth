@@ -22,6 +22,7 @@ object RequestTransport {
 
 sealed trait SlothServerFailure
 object SlothServerFailure {
+  case class PathNotFound(path: List[String]) extends SlothServerFailure
   case class HandlerError(ex: Throwable) extends SlothServerFailure
   case class ReaderError(ex: Throwable) extends SlothServerFailure
   implicit class SlothException(failure: SlothServerFailure) extends Exception(failure.toString)

@@ -55,7 +55,9 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       val config = ServerConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
 
       val server = Server[ByteBuffer, ApiResultFun]
-      val router = server.route[Api[ApiResultFun]](ApiImpl)
+      val router1 = server.route[Api[ApiResultFun]](ApiImpl)
+      val router2 = server.route[Api[ApiResultFun]](ApiImpl)
+      val router = router1 or router2
 
       val handler = new SimpleRequestHandler[ByteBuffer, Event, ApiError, State] {
         def initialReaction = Reaction(Future.successful("empty"))

@@ -12,7 +12,7 @@ class Client[PickleType, Result[_], ErrorType](
   private[sloth] val failureIsError: SlothClientFailure => ErrorType
 ) {
 
-  def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result]
+  def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result, ErrorType]
 }
 
 object Client {

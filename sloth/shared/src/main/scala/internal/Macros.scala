@@ -81,14 +81,14 @@ object Translator {
 }
 
 object TraitMacro {
-  def impl[Trait, PickleType, Result[_]]
+  def impl[Trait, PickleType, Result[_], ErrorType]
     (c: Context)
     (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = Translator(c) { t =>
     import c.universe._
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val methodImpls = validMethods.collect { case (symbol, method) =>
+    val methodImplList = validMethods.collect { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
       val parameters =  t.paramsAsValDefs(method)
       val paramListType = t.paramTypesAsHList(method)
@@ -101,29 +101,27 @@ object TraitMacro {
         }
       """
     }
+    val methodImpls = if (methodImplList.isEmpty) List(EmptyTree) else methodImplList
 
-    //TODO why does `new Trait { ..$methods }` not work if methods is empty? cannot instaniate, trait is abstract: https://github.com/scala/bug/issues/10691
     q"""
       import shapeless._
 
       val impl = new ${t.internalPkg}.ClientImpl(${t.macroThis})
 
-      class anon extends ${traitTag.tpe.finalResultType} {
+      new ${traitTag.tpe.finalResultType} {
         ..$methodImpls
       }
-
-      new anon()
     """
   }
 }
 
 object RouterMacro {
-  import sloth.server.Server
+  import sloth.server.Router
 
   def impl[Trait, PickleType, Result[_]]
     (c: Context)
     (value: c.Expr[Trait])
-    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Server.Router[PickleType, Result]] = Translator(c) { t =>
+    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Router[PickleType, Result]] = Translator(c) { t =>
     import c.universe._
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
@@ -147,9 +145,13 @@ object RouterMacro {
 
       val impl = new ${t.internalPkg}.ServerImpl(${t.macroThis})
 
-      {
-        case ..$methodCases
-      } : ${t.serverPkg}.Server.Router[${pickleTypeTag.tpe}, ${resultTag.tpe}]
+      new ${t.serverPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe}] {
+        override def apply(request: ${t.corePkg}.Request[${pickleTypeTag.tpe}]) = request match {
+          case ..$methodCases
+          case other => Left(${t.corePkg}.SlothServerFailure.PathNotFound(other.path))
+        }
+      }
+
     """
   }
 }
