@@ -22,10 +22,6 @@ object ApiImpl extends Api {
 class CirceSpec extends AsyncFreeSpec with MustMatchers {
 
   "run" in {
-    object Transport extends RequestTransport[String, Future] {
-      override def apply(request: Request[String]): Future[String] = Backend.router(request).fold(Future.failed(_), identity)
-    }
-
     object Backend {
       import sloth.server._
 
@@ -35,6 +31,10 @@ class CirceSpec extends AsyncFreeSpec with MustMatchers {
 
     object Frontend {
       import sloth.client._
+
+      object Transport extends RequestTransport[String, Future] {
+        override def apply(request: Request[String]): Future[String] = Backend.router(request).fold(Future.failed(_), identity)
+      }
 
       val client = Client[String, Future](Transport)
       val api = client.wire[Api]

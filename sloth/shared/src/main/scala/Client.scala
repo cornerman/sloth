@@ -5,6 +5,16 @@ import sloth.internal.TraitMacro
 
 import cats.MonadError
 
+trait RequestTransport[PickleType, Result[_]] {
+  def apply(request: Request[PickleType]): Result[PickleType]
+}
+object RequestTransport {
+  def apply[PickleType, Result[_]](f: Request[PickleType] => Result[PickleType]) =
+    new RequestTransport[PickleType, Result] {
+      def apply(request: Request[PickleType]): Result[PickleType] = f(request)
+    }
+}
+
 class Client[PickleType, Result[_], ErrorType](
   private[sloth] val transport: RequestTransport[PickleType, Result]
 )(implicit

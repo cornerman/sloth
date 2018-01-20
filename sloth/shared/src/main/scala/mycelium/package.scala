@@ -1,6 +1,7 @@
 package sloth
 
 import sloth.core._
+import sloth.client.RequestTransport
 
 import _root_.mycelium.client._
 import _root_.mycelium.core.{Reader => MyceliumReader, Writer => MyceliumWriter}

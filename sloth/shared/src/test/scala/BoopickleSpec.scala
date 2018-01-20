@@ -22,10 +22,6 @@ object ApiImpl extends Api {
 class BoopickleSpec extends AsyncFreeSpec with MustMatchers {
 
  "run" in {
-    object Transport extends RequestTransport[ByteBuffer, Future] {
-      override def apply(request: Request[ByteBuffer]): Future[ByteBuffer] = Backend.router(request).fold(Future.failed(_), identity)
-    }
-
     object Backend {
       import sloth.server._
 
@@ -35,6 +31,10 @@ class BoopickleSpec extends AsyncFreeSpec with MustMatchers {
 
     object Frontend {
       import sloth.client._
+
+      object Transport extends RequestTransport[ByteBuffer, Future] {
+        override def apply(request: Request[ByteBuffer]): Future[ByteBuffer] = Backend.router(request).fold(Future.failed(_), identity)
+      }
 
       val client = Client[ByteBuffer, Future](Transport)
       val api = client.wire[Api]
