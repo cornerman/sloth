@@ -24,7 +24,8 @@ object TypeHelper {
   type Event = String
   type State = String
 
-  case class ApiResult[T](state: Future[State], events: Future[Seq[Event]], result: Future[T])
+  case class ApiValue[T](result: T, events: Seq[Event])
+  case class ApiResult[T](state: Future[State], value: Future[ApiValue[T]])
   type ApiResultFun[T] = Future[State] => ApiResult[T]
 
   sealed trait ApiError
@@ -35,11 +36,12 @@ import TypeHelper._
 //server
 object ApiImpl extends Api[ApiResultFun] {
   def fun(a: Int): ApiResultFun[Int] =
-    state => ApiResult(state, Future.successful(Seq.empty), Future.successful(a))
+    state => ApiResult(state, Future.successful(ApiValue(a, Seq.empty)))
 }
 
 class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
 
+  implicit val apiValueFunctor = cats.derive.functor[ApiValue]
   implicit val apiResultFunctor = cats.derive.functor[ApiResult]
   implicit val apiResultFunFunctor = cats.derive.functor[ApiResultFun]
 
@@ -60,14 +62,14 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       val router = router1 or router2
 
       val handler = new SimpleRequestHandler[ByteBuffer, Event, ApiError, State] {
-        def initialReaction = Reaction(Future.successful("empty"))
+        def initialState = Future.successful("empty")
         def onRequest(state: Future[State], path: List[String], payload: ByteBuffer) = {
           router(Request(path, payload)) match {
             case Right(fun) =>
               val res = fun(state)
-              Response(res.result.map(Right(_)), Reaction(res.state, res.events))
+              Response(res.state, res.value.map(v => ReturnValue(Right(v.result), v.events)))
             case Left(err) =>
-              Response(Future.successful(Left(SlothError(err.toString))), Reaction(state))
+              Response(state, Future.successful(ReturnValue(Left(SlothError(err.toString)))))
           }
         }
       }
