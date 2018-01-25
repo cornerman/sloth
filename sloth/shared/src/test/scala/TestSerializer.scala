@@ -1,15 +1,16 @@
 package test.sloth
 
-import sloth.core._
+import chameleon._
+
 import scala.util.Try
 
 object TestSerializer {
   type PickleType = Any
 
-  implicit def anyWriter[T]: Writer[T, PickleType] = new Writer[T, PickleType] {
-    override def write(arg: T): PickleType = arg
+  implicit def anySerializer[T]: Serializer[T, PickleType] = new Serializer[T, PickleType] {
+    override def serialize(arg: T): PickleType = arg
   }
-  implicit def anyReader[T]: Reader[T, PickleType] = new Reader[T, PickleType] {
-    override def read(arg: PickleType): Either[Throwable, T] = Try(arg.asInstanceOf[T]).toEither
+  implicit def anyDeserializer[T]: Deserializer[T, PickleType] = new Deserializer[T, PickleType] {
+    override def deserialize(arg: PickleType): Either[Throwable, T] = Try(arg.asInstanceOf[T]).toEither
   }
 }

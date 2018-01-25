@@ -5,10 +5,9 @@ inThisBuild(Seq(
   scalaVersion := "2.12.4",
   crossScalaVersions := Seq("2.11.11", "2.12.4"),
 
-  resolvers ++= (
+  resolvers ++=
     ("jitpack" at "https://jitpack.io") ::
     Nil
-  )
 ))
 
 lazy val commonSettings = Seq(
@@ -27,7 +26,6 @@ lazy val commonSettings = Seq(
     "-Ywarn-value-discard" ::
     "-Ywarn-nullary-override" ::
     "-Ywarn-nullary-unit" ::
-    "-Ywarn-unused" ::
     Nil,
 
   scalacOptions ++= {
@@ -56,18 +54,15 @@ lazy val sloth = crossProject
   .settings(
     name := "sloth",
     libraryDependencies ++=
-      Deps.scalaReflect.value % scalaVersion.value ::
+      Deps.scalaReflect.value % scalaVersion.value % Provided ::
       Deps.shapeless.value ::
-      Deps.cats.core.value ::
+      Deps.cats.value ::
+      Deps.chameleon.value ::
 
-      Deps.boopickle.value % Optional ::
-      Deps.circe.core.value % Optional ::
-      Deps.circe.parser.value % Optional ::
-      Deps.circe.generic.value % Optional ::
-      Deps.circe.shapes.value % Optional ::
       Deps.mycelium.value % Optional ::
 
-      Deps.cats.kittens.value % Test ::
+      Deps.boopickle.value % Test ::
+      Deps.kittens.value % Test ::
       Deps.scalaTest.value % Test ::
       Nil
   )

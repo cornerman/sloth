@@ -1,18 +1,19 @@
 package test.sloth.mycelium
 
 import org.scalatest._
-import scala.concurrent.Future
 
 import sloth.core._
-import sloth.boopickle._
 import sloth.mycelium._
+import chameleon.boopickle._
 import mycelium.client._
 import mycelium.server._
-
 import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.actor.ActorSystem
+import boopickle.Default._
+import java.nio.ByteBuffer
 import cats.implicits._
-import boopickle.Default._, java.nio.ByteBuffer
+
+import scala.concurrent.Future
 import scala.util.{Success, Failure}
 
 //shared
