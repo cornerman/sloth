@@ -135,7 +135,7 @@ object RouterMacro {
       cq"""
         ${t.corePkg}.Request($path, payload) =>
           impl.execute[$paramListType, $innerReturnType](payload) { args =>
-            $value.${symbol.name.toTermName}(...$argParams)
+            value.${symbol.name.toTermName}(...$argParams)
           }
       """
     }
@@ -143,6 +143,7 @@ object RouterMacro {
     q"""
       import shapeless._
 
+      val value = $value
       val impl = new ${t.internalPkg}.ServerImpl(${t.macroThis})
 
       new ${t.serverPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe}] {
