@@ -60,9 +60,9 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
           Backend.router(request).fold(Future.failed(_), identity)
       }
 
-      val client = Client[PickleType, Future](Transport)
-      val api = client.wire[Api[Future]]
-      val emptyApi = client.wire[EmptyApi]
+      val client = Client[PickleType, Future]
+      val api = client.wire[Api[Future]](Transport)
+      val emptyApi = client.wire[EmptyApi](Transport)
     }
 
     Frontend.api.fun(1).map(_ mustEqual 1)
@@ -97,8 +97,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
           })
       }
 
-      val client = Client[PickleType, ClientResult, ApiError](Transport)
-      val api = client.wire[Api[ClientResult]]
+      val client = Client[PickleType, ClientResult, ApiError]
+      val api = client.wire[Api[ClientResult]](Transport)
     }
 
     Frontend.api.fun(1).value.map(_.right.get mustEqual 1)
@@ -121,8 +121,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
           Backend.router(request).fold(Future.failed(_), _(10).result)
       }
 
-      val client = Client[PickleType, Future](Transport)
-      val api = client.wire[Api[Future]]
+      val client = Client[PickleType, Future]
+      val api = client.wire[Api[Future]](Transport)
     }
 
     Frontend.api.fun(1).map(_ mustEqual 11)

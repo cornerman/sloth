@@ -81,8 +81,11 @@ object Translator {
 }
 
 object TraitMacro {
+  import sloth.client.RequestTransport
+
   def impl[Trait, PickleType, Result[_], ErrorType]
     (c: Context)
+    (transport: c.Expr[RequestTransport[PickleType, Result]])
     (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = Translator(c) { t =>
     import c.universe._
 
@@ -106,7 +109,7 @@ object TraitMacro {
     q"""
       import shapeless._
 
-      val impl = new ${t.internalPkg}.ClientImpl(${t.macroThis})
+      val impl = new ${t.internalPkg}.ClientImpl(${t.macroThis}, $transport)
 
       new ${traitTag.tpe.finalResultType} {
         ..$methodImpls

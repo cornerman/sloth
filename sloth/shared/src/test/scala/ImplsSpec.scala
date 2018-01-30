@@ -13,8 +13,9 @@ class ImplsSpec extends FreeSpec with MustMatchers {
     import sloth.server._
     import sloth.internal.ServerImpl
 
+    val server = Server[PickleType, Id]
+
     "works" in {
-      val server = Server[PickleType, Id]
       val impl = new ServerImpl(server)
 
       val result = impl.execute[Int, String](1)(_.toString)
@@ -23,7 +24,6 @@ class ImplsSpec extends FreeSpec with MustMatchers {
     }
 
     "catch exception" in {
-      val server = Server[PickleType, Id]
       val impl = new ServerImpl(server)
 
       val exception = new Exception("meh")
@@ -38,11 +38,11 @@ class ImplsSpec extends FreeSpec with MustMatchers {
     import sloth.internal.ClientImpl
 
     type EitherResult[T] = Either[ClientFailure, T]
+    val client = Client[PickleType, EitherResult, ClientFailure]
 
     "works" in {
       val successTransport = RequestTransport[PickleType, EitherResult](request => Right(request.payload))
-      val client = Client[PickleType, EitherResult, ClientFailure](successTransport)
-      val impl = new ClientImpl(client)
+      val impl = new ClientImpl(client, successTransport)
 
       val result = impl.execute[Int, String]("path" :: Nil, 1)
 
@@ -52,8 +52,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
     "catch exception" in {
       val exception = new Exception("meh")
       val failureTransport = RequestTransport[PickleType, EitherResult](_ => throw exception)
-      val client = Client[PickleType, EitherResult, ClientFailure](failureTransport)
-      val impl = new ClientImpl(client)
+      val impl = new ClientImpl(client, failureTransport)
 
       val result = impl.execute[Int, String]("path" :: Nil, 1)
 

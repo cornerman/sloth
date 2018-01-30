@@ -39,7 +39,7 @@ object ApiImpl extends Api[ApiResultFun] {
     state => ApiResult(state, Future.successful(ApiValue(a, Seq.empty)))
 }
 
-class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
+class MyceliumSpec extends AsyncFreeSpec with MustMatchers with BeforeAndAfterAll {
 
   implicit val apiValueFunctor = cats.derive.functor[ApiValue]
   implicit val apiResultFunctor = cats.derive.functor[ApiResult]
@@ -49,6 +49,10 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
   implicit val materializer = ActorMaterializer()
 
   val port = 9999
+  override def afterAll(): Unit =  {
+    system.terminate()
+    ()
+  }
 
  "run" in {
     object Backend {
@@ -72,7 +76,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
         }
       }
 
-      val mycelium = WebsocketServerFlow(config, handler)
+      val mycelium = WebsocketServer(config, handler)
 
       //TODO this test of actually running belong into mycelium project
       def run() = {
@@ -81,7 +85,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
         import akka.http.scaladsl.Http
 
         val route = (path("ws") & get) {
-          handleWebSocketMessages(mycelium)
+          handleWebSocketMessages(mycelium.flow())
         }
 
         Http().bindAndHandle(route, interface = "0.0.0.0", port = port).onComplete {
@@ -98,12 +102,11 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       val akkaConfig = AkkaWebsocketConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
 
       val handler = new IncidentHandler[Event]
-      val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](
-        AkkaWebsocketConnection(akkaConfig), config, handler)
+      val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](AkkaWebsocketConnection(akkaConfig), config, handler)
       val requestTransport = mycelium.toTransport(SendBehaviour.WhenConnected, onError = err => new Exception(err.toString))
-      val client = Client[ByteBuffer, Future](requestTransport)
+      val client = Client[ByteBuffer, Future]
 
-      val api = client.wire[Api[Future]]
+      val api = client.wire[Api[Future]](requestTransport)
 
       def run() = {
         mycelium.run(s"ws://localhost:$port/ws")

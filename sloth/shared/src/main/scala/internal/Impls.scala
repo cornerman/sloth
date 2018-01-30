@@ -1,8 +1,8 @@
 package sloth.internal
 
 import sloth.core._
-import sloth.client.Client
-import sloth.server.Server
+import sloth.client._
+import sloth.server._
 
 import chameleon._
 import cats.syntax.all._
@@ -23,7 +23,7 @@ class ServerImpl[PickleType, Result[_]](server: Server[PickleType, Result]) {
   }
 }
 
-class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Result, ErrorType]) {
+class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Result, ErrorType], transport: RequestTransport[PickleType, Result]) {
   import client._
 
   def execute[T, R](path: List[String], arguments: T)(implicit deserializer: Deserializer[R, PickleType], serializer: Serializer[T, PickleType]): Result[R] = {
