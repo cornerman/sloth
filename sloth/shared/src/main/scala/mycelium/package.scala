@@ -9,16 +9,19 @@ import scala.concurrent.{ExecutionContext, Future}
 
 package object mycelium {
 
-  //TODO: with other result type? e.g. Future[Either[Error, T]]
-  implicit class MyceliumTransport[PickleType, Failure, ErrorType <: Throwable](
-    client: WebsocketClient[_, PickleType, _, Failure])(implicit
-    ec: ExecutionContext,
-    failureIsError: Failure => ErrorType) extends RequestTransport[PickleType, Future] {
+  implicit class TransportableWebsocketClient[PickleType, ErrorType](
+    client: WebsocketClient[_, PickleType, _, ErrorType]) {
 
-    def apply(request: Request[PickleType]): Future[PickleType] = {
-      client.send(request.path, request.payload).map {
-        case Right(res) => res
-        case Left(err) => throw err
+    def toTransport(behaviour: SendBehaviour)(implicit ec: ExecutionContext) = new RequestTransport[PickleType, Lambda[T => Future[Either[ErrorType, T]]]] {
+      def apply(request: Request[PickleType]): Future[Either[ErrorType, PickleType]] = client.send(request.path, request.payload, behaviour)
+    }
+
+    def toTransport(behaviour: SendBehaviour, recover: ErrorType => Future[PickleType])(implicit ec: ExecutionContext) = new RequestTransport[PickleType, Future] {
+      def apply(request: Request[PickleType]): Future[PickleType] = {
+        client.send(request.path, request.payload, behaviour).flatMap {
+          case Right(res) => Future.successful(res)
+          case Left(err) => recover(err)
+        }
       }
     }
   }

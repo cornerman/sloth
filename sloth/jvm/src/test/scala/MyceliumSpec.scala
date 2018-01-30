@@ -31,7 +31,6 @@ object TypeHelper {
 
   sealed trait ApiError
   case class SlothError(msg: String) extends ApiError
-  implicit class ApiException(error: ApiError) extends Exception(error.toString)
 }
 import TypeHelper._
 //server
@@ -100,14 +99,11 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       val config = ClientConfig(requestTimeoutMillis = 5 * 1000)
       val akkaConfig = AkkaWebsocketConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
 
-      val handler = new IncidentHandler[Event] {
-        def onConnect(reconnect: Boolean): Unit = {}
-        def onEvents(events: Seq[Event]): Unit = {}
-      }
-
+      val handler = new IncidentHandler[Event]
       val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](
         AkkaWebsocketConnection(akkaConfig), config, handler)
-      val client = Client[ByteBuffer, Future](mycelium)
+      val requestTransport = mycelium.toTransport(SendBehaviour.WhenConnected, recover = err => Future.failed(new Exception(err.toString)))
+      val client = Client[ByteBuffer, Future](requestTransport)
 
       val api = client.wire[Api[Future]]
 
