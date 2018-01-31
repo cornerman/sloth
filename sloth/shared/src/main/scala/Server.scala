@@ -7,7 +7,7 @@ import cats.Functor
 
 trait Router[PickleType, Result[_]] { router =>
   def apply(request: Request[PickleType]): Either[SlothServerFailure, Result[PickleType]]
-  def or(otherRouter: Router[PickleType, Result]) = new Router[PickleType, Result] {
+  def orElse(otherRouter: Router[PickleType, Result]) = new Router[PickleType, Result] {
     def apply(request: Request[PickleType]): Either[SlothServerFailure, Result[PickleType]] = router(request) match {
       case Left(SlothServerFailure.PathNotFound(_)) => otherRouter(request)
       case other => other

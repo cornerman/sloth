@@ -7,6 +7,7 @@ import sloth.core._
 import cats.implicits._
 
 trait EmptyApi
+object EmptyApi extends EmptyApi
 
 //shared
 trait Api[Result[_]] {
@@ -48,7 +49,7 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
       import sloth.server._
 
       val server = Server[PickleType, Future]
-      val router = server.route[Api[Future]](ApiImplFuture)
+      val router = server.route[Api[Future]](ApiImplFuture) orElse server.route(EmptyApi)
     }
 
     object Frontend {
