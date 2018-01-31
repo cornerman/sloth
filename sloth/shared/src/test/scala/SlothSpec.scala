@@ -57,10 +57,10 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
 
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] =
-          Backend.router(request).fold(Future.failed(_), identity)
+          Backend.router(request).fold(err => Future.failed(new Exception(err.toString)), identity)
       }
 
-      val client = Client[PickleType, Future](Transport)
+      val client = Client[PickleType, Future, ClientException](Transport)
       val api = client.wire[Api[Future]]
       val emptyApi = client.wire[EmptyApi]
     }
@@ -72,9 +72,13 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     import cats.data.EitherT
 
     sealed trait ApiError
-    implicit class SlothClientError(msg: ClientFailure) extends ApiError
-    case class SlothServerError(msg: ServerFailure) extends ApiError
+    case class SlothClientError(failure: ClientFailure) extends ApiError
+    case class SlothServerError(failure: ServerFailure) extends ApiError
     case class UnexpectedError(msg: String) extends ApiError
+
+    implicit def clientFailureConvert = new ClientFailureConvert[ApiError] {
+      def convert(failure: ClientFailure) = SlothClientError(failure)
+    }
 
     type ClientResult[T] = EitherT[Future, ApiError, T]
 
@@ -118,10 +122,10 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
 
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] =
-          Backend.router(request).fold(Future.failed(_), _(10).result)
+          Backend.router(request).fold(err => Future.failed(new Exception(err.toString)), _(10).result)
       }
 
-      val client = Client[PickleType, Future](Transport)
+      val client = Client[PickleType, Future, ClientException](Transport)
       val api = client.wire[Api[Future]]
     }
 

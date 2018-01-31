@@ -33,10 +33,10 @@ class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Re
       case Success(response) => response.flatMap { response =>
         deserializer.deserialize(response) match {
           case Right(result) => monad.pure[R](result)
-          case Left(err)     => monad.raiseError(ClientFailure.DeserializerError(err))
+          case Left(t)     => monad.raiseError(failureConverter.convert(ClientFailure.DeserializerError(t)))
         }
       }
-      case Failure(err) => monad.raiseError(ClientFailure.TransportError(err))
+      case Failure(t) => monad.raiseError(failureConverter.convert(ClientFailure.TransportError(t)))
     }
   }
 }
