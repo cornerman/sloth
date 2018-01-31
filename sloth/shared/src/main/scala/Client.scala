@@ -16,7 +16,8 @@ object RequestTransport {
 }
 
 class Client[PickleType, Result[_], ErrorType](
-  private[sloth] val transport: RequestTransport[PickleType, Result]
+  private[sloth] val transport: RequestTransport[PickleType, Result],
+  private[sloth] val logger: LogHandler[Result]
 )(implicit
   private[sloth] val monad: MonadError[Result, _ >: ErrorType],
   private[sloth] val failureConverter: ClientFailureConvert[ErrorType]
@@ -26,5 +27,5 @@ class Client[PickleType, Result[_], ErrorType](
 }
 
 object Client {
-  def apply[PickleType, Result[_], ErrorType : ClientFailureConvert](transport: RequestTransport[PickleType, Result])(implicit monad: MonadError[Result, _ >: ErrorType]) = new Client[PickleType, Result, ErrorType](transport)
+  def apply[PickleType, Result[_], ErrorType : ClientFailureConvert](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit monad: MonadError[Result, _ >: ErrorType]) = new Client[PickleType, Result, ErrorType](transport, logger)
 }

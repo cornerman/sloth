@@ -12,13 +12,19 @@ import scala.util.{Success, Failure, Try}
 class ServerImpl[PickleType, Result[_]](server: Server[PickleType, Result]) {
   import server._
 
-  def execute[T, R](arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): Either[ServerFailure, Result[PickleType]] = {
+  def execute[T, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): Either[ServerFailure, Result[PickleType]] = {
     deserializer.deserialize(arguments) match {
-      case Right(args) => Try(call(args)) match {
-        case Success(result) => Right(result.map(x => serializer.serialize(x)))
-        case Failure(err) => Left(ServerFailure.HandlerError(err))
-      }
-      case Left(err)   => Left(ServerFailure.DeserializerError(err))
+      case Right(arguments) =>
+        val result: Either[ServerFailure, Result[PickleType]] = Try(call(arguments)) match {
+          case Success(result) => Right(result.map(x => serializer.serialize(x)))
+          case Failure(err) => Left(ServerFailure.HandlerError(err))
+        }
+        logger.logRequest(path, arguments, result)
+        result
+      case Left(err)   =>
+        val result = Left(ServerFailure.DeserializerError(err))
+        logger.logRequest(path, arguments, result)
+        result
     }
   }
 }
@@ -28,15 +34,18 @@ class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Re
 
   def execute[T, R](path: List[String], arguments: T)(implicit deserializer: Deserializer[R, PickleType], serializer: Serializer[T, PickleType]): Result[R] = {
     val params = serializer.serialize(arguments)
-    val request = Request(path, params)
-    Try(transport(request)) match {
+    val request: Request[PickleType] = Request(path, params)
+    val result: Result[R] = Try(transport(request)) match {
       case Success(response) => response.flatMap { response =>
         deserializer.deserialize(response) match {
-          case Right(result) => monad.pure[R](result)
+          case Right(value) => monad.pure[R](value)
           case Left(t)     => monad.raiseError(failureConverter.convert(ClientFailure.DeserializerError(t)))
         }
       }
       case Failure(t) => monad.raiseError(failureConverter.convert(ClientFailure.TransportError(t)))
     }
+
+    logger.logRequest(path, arguments, result)
+    result
   }
 }

@@ -27,3 +27,12 @@ object ClientFailureConvert {
     override def convert(failure: ClientFailure) = ClientException(failure)
   }
 }
+
+trait LogHandler[Result[_]] {
+  def logRequest(path: List[String], arguments: Any, result: Result[_]): Unit
+}
+object LogHandler {
+  def empty[Result[_]] = new LogHandler[Result] {
+    def logRequest(path: List[String], arguments: Any, result: Result[_]): Unit = ()
+  }
+}

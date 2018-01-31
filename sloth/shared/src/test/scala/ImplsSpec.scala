@@ -17,7 +17,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
       val server = Server[PickleType, Id]
       val impl = new ServerImpl(server)
 
-      val result = impl.execute[Int, String](1)(_.toString)
+      val result = impl.execute[Int, String]("api" :: Nil, 1)(_.toString)
 
       result mustEqual Right("1")
     }
@@ -27,7 +27,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
       val impl = new ServerImpl(server)
 
       val exception = new Exception("meh")
-      val result = impl.execute[Int, String](1)(_ => throw exception)
+      val result = impl.execute[Int, String]("api" :: Nil, 1)(_ => throw exception)
 
       result mustEqual Left(ServerFailure.HandlerError(exception))
     }

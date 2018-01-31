@@ -134,7 +134,7 @@ object RouterMacro {
 
       cq"""
         ${t.corePkg}.Request($path, payload) =>
-          impl.execute[$paramListType, $innerReturnType](payload) { args =>
+          impl.execute[$paramListType, $innerReturnType]($path, payload) { args =>
             value.${symbol.name.toTermName}(...$argParams)
           }
       """
