@@ -100,7 +100,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       val handler = new IncidentHandler[Event]
       val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](
         AkkaWebsocketConnection(akkaConfig), config, handler)
-      val requestTransport = mycelium.toTransport(SendBehaviour.WhenConnected, onError = err => new Exception(err.toString))
+      val requestTransport = mycelium.toTransport(SendType.WhenConnected, onError = err => new Exception(err.toString))
       val client = Client[ByteBuffer, Future, ClientException](requestTransport)
 
       val api = client.wire[Api[Future]]
