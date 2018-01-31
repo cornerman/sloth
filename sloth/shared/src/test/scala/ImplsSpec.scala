@@ -29,7 +29,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
       val exception = new Exception("meh")
       val result = impl.execute[Int, String](1)(_ => throw exception)
 
-      result mustEqual Left(SlothServerFailure.HandlerError(exception))
+      result mustEqual Left(ServerFailure.HandlerError(exception))
     }
   }
 
@@ -37,11 +37,11 @@ class ImplsSpec extends FreeSpec with MustMatchers {
     import sloth.client._
     import sloth.internal.ClientImpl
 
-    type EitherResult[T] = Either[SlothClientFailure, T]
+    type EitherResult[T] = Either[ClientFailure, T]
 
     "works" in {
       val successTransport = RequestTransport[PickleType, EitherResult](request => Right(request.payload))
-      val client = Client[PickleType, EitherResult, SlothClientFailure](successTransport)
+      val client = Client[PickleType, EitherResult, ClientFailure](successTransport)
       val impl = new ClientImpl(client)
 
       val result = impl.execute[Int, String]("path" :: Nil, 1)
@@ -52,12 +52,12 @@ class ImplsSpec extends FreeSpec with MustMatchers {
     "catch exception" in {
       val exception = new Exception("meh")
       val failureTransport = RequestTransport[PickleType, EitherResult](_ => throw exception)
-      val client = Client[PickleType, EitherResult, SlothClientFailure](failureTransport)
+      val client = Client[PickleType, EitherResult, ClientFailure](failureTransport)
       val impl = new ClientImpl(client)
 
       val result = impl.execute[Int, String]("path" :: Nil, 1)
 
-      result mustEqual Left(SlothClientFailure.TransportError(exception))
+      result mustEqual Left(ClientFailure.TransportError(exception))
     }
   }
 }

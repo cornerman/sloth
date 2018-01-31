@@ -12,13 +12,13 @@ import scala.util.{Success, Failure, Try}
 class ServerImpl[PickleType, Result[_]](server: Server[PickleType, Result]) {
   import server._
 
-  def execute[T, R](arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): Either[SlothServerFailure, Result[PickleType]] = {
+  def execute[T, R](arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): Either[ServerFailure, Result[PickleType]] = {
     deserializer.deserialize(arguments) match {
       case Right(args) => Try(call(args)) match {
         case Success(result) => Right(result.map(x => serializer.serialize(x)))
-        case Failure(err) => Left(SlothServerFailure.HandlerError(err))
+        case Failure(err) => Left(ServerFailure.HandlerError(err))
       }
-      case Left(err)   => Left(SlothServerFailure.DeserializerError(err))
+      case Left(err)   => Left(ServerFailure.DeserializerError(err))
     }
   }
 }
@@ -33,10 +33,10 @@ class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Re
       case Success(response) => response.flatMap { response =>
         deserializer.deserialize(response) match {
           case Right(result) => monad.pure[R](result)
-          case Left(err)     => monad.raiseError(SlothClientFailure.DeserializerError(err))
+          case Left(err)     => monad.raiseError(ClientFailure.DeserializerError(err))
         }
       }
-      case Failure(err) => monad.raiseError(SlothClientFailure.TransportError(err))
+      case Failure(err) => monad.raiseError(ClientFailure.TransportError(err))
     }
   }
 }

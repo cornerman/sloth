@@ -19,25 +19,25 @@ class Client[PickleType, Result[_], ErrorType](
   private[sloth] val transport: RequestTransport[PickleType, Result]
 )(implicit
   private[sloth] val monad: MonadError[Result, _ >: ErrorType],
-  private[sloth] val failureIsError: SlothClientFailure => ErrorType //TODO typeclass for failure
+  private[sloth] val failureIsError: ClientFailure => ErrorType //TODO typeclass for failure
 ) {
 
   def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result, ErrorType]
 }
 
 object Client {
-  import SlothClientFailure.SlothException
+  import ClientFailure.ClientException
 
   def apply[PickleType, Result[_]](
     transport: RequestTransport[PickleType, Result]
   )(implicit
-    monad: MonadError[Result, _ >: SlothException]
-  ) = apply[PickleType, Result, SlothException](transport)
+    monad: MonadError[Result, _ >: ClientException]
+  ) = apply[PickleType, Result, ClientException](transport)
 
   def apply[PickleType, Result[_], ErrorType](
     transport: RequestTransport[PickleType, Result]
   )(implicit
     monad: MonadError[Result, _ >: ErrorType],
-    failureIsError: SlothClientFailure => ErrorType
+    failureIsError: ClientFailure => ErrorType
   ) = new Client[PickleType, Result, ErrorType](transport)
 }

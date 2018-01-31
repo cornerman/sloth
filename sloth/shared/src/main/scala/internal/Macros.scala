@@ -149,7 +149,7 @@ object RouterMacro {
       new ${t.serverPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe}] {
         override def apply(request: ${t.corePkg}.Request[${pickleTypeTag.tpe}]) = request match {
           case ..$methodCases
-          case other => Left(${t.corePkg}.SlothServerFailure.PathNotFound(other.path))
+          case other => Left(${t.corePkg}.ServerFailure.PathNotFound(other.path))
         }
       }
 

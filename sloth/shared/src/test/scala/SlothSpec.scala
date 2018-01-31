@@ -72,8 +72,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     import cats.data.EitherT
 
     sealed trait ApiError
-    implicit class SlothClientError(msg: SlothClientFailure) extends ApiError
-    case class SlothServerError(msg: SlothServerFailure) extends ApiError
+    implicit class SlothClientError(msg: ClientFailure) extends ApiError
+    case class SlothServerError(msg: ServerFailure) extends ApiError
     case class UnexpectedError(msg: String) extends ApiError
 
     type ClientResult[T] = EitherT[Future, ApiError, T]
