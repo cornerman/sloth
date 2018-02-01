@@ -9,7 +9,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 package object mycelium {
 
-  implicit class TransportableWebsocketClient[PickleType, ErrorType](client: WebsocketClient[_, PickleType, _, ErrorType]) {
+  implicit class TransportableWebsocketClient[PickleType, ErrorType](client: WebsocketClient[PickleType, _, ErrorType]) {
 
     def toTransport(sendType: SendType, recover: PartialFunction[Throwable, ErrorType] = PartialFunction.empty)(implicit ec: ExecutionContext) = new RequestTransport[PickleType, Lambda[T => Future[Either[ErrorType, T]]]] {
       def apply(request: Request[PickleType]): Future[Either[ErrorType, PickleType]] = client.send(request.path, request.payload, sendType).recover(recover andThen Left.apply)

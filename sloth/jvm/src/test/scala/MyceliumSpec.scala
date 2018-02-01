@@ -14,6 +14,7 @@ import java.nio.ByteBuffer
 import cats.implicits._
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.{Success, Failure}
 
 //shared
@@ -94,12 +95,11 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
     object Frontend {
       import sloth.client._
 
-      val config = ClientConfig(requestTimeoutMillis = 5 * 1000)
+      val config = ClientConfig(requestTimeout = 5 seconds)
       val akkaConfig = AkkaWebsocketConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
 
       val handler = new IncidentHandler[Event]
-      val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](
-        AkkaWebsocketConnection(akkaConfig), config, handler)
+      val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](new AkkaWebsocketConnection(akkaConfig), config, handler)
       val requestTransport = mycelium.toTransport(SendType.WhenConnected, onError = err => new Exception(err.toString))
       val client = Client[ByteBuffer, Future, ClientException](requestTransport)
 
