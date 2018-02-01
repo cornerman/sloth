@@ -55,8 +55,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val config = ServerConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
-
+      val config = WebsocketServerConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
       val server = Server[ByteBuffer, ApiResultFun]
       val router = server.route[Api[ApiResultFun]](ApiImpl)
 
@@ -73,7 +72,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
         }
       }
 
-      val mycelium = WebsocketServerFlow(config, handler)
+      val mycelium = WebsocketServer(config, handler)
 
       //TODO this test of actually running belong into mycelium project
       def run() = {
@@ -82,7 +81,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
         import akka.http.scaladsl.Http
 
         val route = (path("ws") & get) {
-          handleWebSocketMessages(mycelium)
+          handleWebSocketMessages(mycelium.flow())
         }
 
         Http().bindAndHandle(route, interface = "0.0.0.0", port = port).onComplete {
@@ -95,12 +94,10 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
     object Frontend {
       import sloth.client._
 
-      val config = ClientConfig(requestTimeout = 5 seconds)
       val akkaConfig = AkkaWebsocketConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
-
-      val handler = new IncidentHandler[Event]
-      val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](new AkkaWebsocketConnection(akkaConfig), config, handler)
-      val requestTransport = mycelium.toTransport(SendType.WhenConnected, onError = err => new Exception(err.toString))
+      val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](
+        new AkkaWebsocketConnection(akkaConfig), WebsocketClientConfig(), new IncidentHandler[Event])
+      val requestTransport = mycelium.toTransport(SendType.WhenConnected, requestTimeout = 30 seconds, onError = err => new Exception(err.toString))
       val client = Client[ByteBuffer, Future, ClientException](requestTransport)
 
       val api = client.wire[Api[Future]]
