@@ -15,12 +15,15 @@ class ServerImpl[PickleType, Result[_]](server: Server[PickleType, Result]) {
   def execute[T, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): Either[ServerFailure, Result[PickleType]] = {
     deserializer.deserialize(arguments) match {
       case Right(arguments) =>
-        val result: Either[ServerFailure, Result[PickleType]] = Try(call(arguments)) match {
-          case Success(result) => Right(result.map(x => serializer.serialize(x)))
-          case Failure(err) => Left(ServerFailure.HandlerError(err))
+        Try(call(arguments)) match {
+          case Success(result) =>
+            logger.logRequest(path, arguments, Right(result))
+            Right(result.map(x => serializer.serialize(x)))
+          case Failure(err) =>
+            val result = Left(ServerFailure.HandlerError(err))
+            logger.logRequest(path, arguments, result)
+            result
         }
-        logger.logRequest(path, arguments, result)
-        result
       case Left(err)   =>
         val result = Left(ServerFailure.DeserializerError(err))
         logger.logRequest(path, arguments, result)
