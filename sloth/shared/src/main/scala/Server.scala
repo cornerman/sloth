@@ -27,6 +27,6 @@ class Server[PickleType, Result[_]](
 object Server {
   type ResultT[Result[_], T] = Either[ServerFailure, Result[T]]
 
-  def apply[PickleType, Result[_] : Functor]: Server[PickleType, Result] = apply[PickleType, Result](LogHandler.empty[ResultT[Result, ?]])
+  def apply[PickleType, Result[_] : Functor]: Server[PickleType, Result] = apply[PickleType, Result](new LogHandler[ResultT[Result, ?]])
   def apply[PickleType, Result[_] : Functor](logger: LogHandler[ResultT[Result, ?]]): Server[PickleType, Result] = new Server[PickleType, Result](logger)
 }

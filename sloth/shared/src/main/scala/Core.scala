@@ -28,11 +28,7 @@ object ClientFailureConvert {
   }
 }
 
-trait LogHandler[Result[_]] {
-  def logRequest(path: List[String], arguments: Any, result: Result[_]): Unit
-}
-object LogHandler {
-  def empty[Result[_]] = new LogHandler[Result] {
-    def logRequest(path: List[String], arguments: Any, result: Result[_]): Unit = ()
-  }
+class LogHandler[Result[_]] {
+  def logSuccess(path: List[String], arguments: Any, result: Any): Unit = ()
+  def logRequest(path: List[String], arguments: Any, result: Result[_]): Unit = ()
 }

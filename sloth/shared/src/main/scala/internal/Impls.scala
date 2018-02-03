@@ -18,7 +18,10 @@ class ServerImpl[PickleType, Result[_]](server: Server[PickleType, Result]) {
         Try(call(arguments)) match {
           case Success(result) =>
             logger.logRequest(path, arguments, Right(result))
-            Right(result.map(x => serializer.serialize(x)))
+            Right(result.map { value =>
+              logger.logSuccess(path, arguments, value)
+              serializer.serialize(value)
+            })
           case Failure(err) =>
             val result = Left(ServerFailure.HandlerError(err))
             logger.logRequest(path, arguments, result)
@@ -41,7 +44,9 @@ class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Re
     val result: Result[R] = Try(transport(request)) match {
       case Success(response) => response.flatMap { response =>
         deserializer.deserialize(response) match {
-          case Right(value) => monad.pure[R](value)
+          case Right(value) =>
+            logger.logSuccess(path, arguments, value)
+            monad.pure[R](value)
           case Left(t)     => monad.raiseError(failureConverter.convert(ClientFailure.DeserializerError(t)))
         }
       }
