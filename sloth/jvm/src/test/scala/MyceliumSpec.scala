@@ -4,7 +4,7 @@ import org.scalatest._
 
 import sloth.core._
 import sloth.mycelium._
-import chameleon.boopickle._
+import chameleon.Boopickle._
 import mycelium.client._
 import mycelium.server._
 import akka.stream.{ActorMaterializer, OverflowStrategy}
