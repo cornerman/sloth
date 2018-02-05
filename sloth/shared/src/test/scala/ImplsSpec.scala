@@ -5,31 +5,33 @@ import org.scalatest._
 import sloth.core._
 import cats._
 import cats.implicits._
+import shapeless._
 
 class ImplsSpec extends FreeSpec with MustMatchers {
   import TestSerializer._
 
   "server impl" - {
     import sloth.server._
+    import ServerResult._
     import sloth.internal.ServerImpl
 
     "works" in {
-      val server = Server[PickleType, Id]
+      val server = Server[PickleType, cats.Id]
       val impl = new ServerImpl(server)
 
-      val result = impl.execute[Int, String]("api" :: Nil, 1)(_.toString)
+      val result = impl.execute[(Int :: HNil) :: HNil, String]("api" :: Nil, (1 :: HNil) :: HNil)(_.runtimeList.head.asInstanceOf[HList].runtimeList.head.toString)
 
-      result mustEqual Right("1")
+      result mustEqual Success[PickleType, cats.Id]((1 :: Nil) :: Nil, Value("1", "1"))
     }
 
     "catch exception" in {
-      val server = Server[PickleType, Id]
+      val server = Server[PickleType, cats.Id]
       val impl = new ServerImpl(server)
 
       val exception = new Exception("meh")
-      val result = impl.execute[Int, String]("api" :: Nil, 1)(_ => throw exception)
+      val result = impl.execute[(Int :: HNil) :: HNil, String]("api" :: Nil, (1 :: HNil) :: HNil)(_ => throw exception)
 
-      result mustEqual Left(ServerFailure.HandlerError(exception))
+      result mustEqual Failure((1 :: Nil) :: Nil, ServerFailure.HandlerError(exception))
     }
   }
 
@@ -40,11 +42,11 @@ class ImplsSpec extends FreeSpec with MustMatchers {
     type EitherResult[T] = Either[ClientFailure, T]
 
     "works" in {
-      val successTransport = RequestTransport[PickleType, EitherResult](request => Right(request.payload))
+      val successTransport = RequestTransport[PickleType, EitherResult](request => Right(request.payload.asInstanceOf[HList].runtimeList.head.asInstanceOf[HList].runtimeList.head))
       val client = Client[PickleType, EitherResult, ClientFailure](successTransport)
       val impl = new ClientImpl(client)
 
-      val result = impl.execute[Int, String]("path" :: Nil, 1)
+      val result = impl.execute[(Int :: HNil) :: HNil, String]("path" :: Nil, (1 :: HNil) :: HNil)
 
       result mustEqual Right(1)
     }
@@ -55,7 +57,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
       val client = Client[PickleType, EitherResult, ClientFailure](failureTransport)
       val impl = new ClientImpl(client)
 
-      val result = impl.execute[Int, String]("path" :: Nil, 1)
+      val result = impl.execute[(Int :: HNil) :: HNil, String]("path" :: Nil, (1 :: HNil) :: HNil)
 
       result mustEqual Left(ClientFailure.TransportError(exception))
     }

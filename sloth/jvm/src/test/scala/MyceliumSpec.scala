@@ -62,7 +62,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       val handler = new SimpleRequestHandler[ByteBuffer, Event, ApiError, State] {
         def initialState = Future.successful("empty")
         def onRequest(state: Future[State], path: List[String], payload: ByteBuffer) = {
-          router(Request(path, payload)) match {
+          router(Request(path, payload)).toEither match {
             case Right(fun) =>
               val res = fun(state)
               Response(res.state, res.value.map(v => ReturnValue(Right(v.result), v.events)))

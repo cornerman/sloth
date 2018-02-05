@@ -23,26 +23,26 @@ object ApiImplFuture extends Api[Future] {
   def multi(a: Int)(b: Int): Future[Int] = Future.successful(a)
 }
 //or
-case class ServerResult[T](event: String, result: Future[T])
-object ApiImplResponse extends Api[ServerResult] {
-  def simple: ServerResult[Int] = ServerResult("peter", Future.successful(1))
-  def fun(a: Int): ServerResult[Int] = ServerResult("hans", Future.successful(a))
-  def multi(a: Int)(b: Int): ServerResult[Int] = ServerResult("hans", Future.successful(a + b))
+case class ApiResult[T](event: String, result: Future[T])
+object ApiImplResponse extends Api[ApiResult] {
+  def simple: ApiResult[Int] = ApiResult("peter", Future.successful(1))
+  def fun(a: Int): ApiResult[Int] = ApiResult("hans", Future.successful(a))
+  def multi(a: Int)(b: Int): ApiResult[Int] = ApiResult("hans", Future.successful(a + b))
 }
 //or
-object TypeHelper { type ServerFunResult[T] = Int => ServerResult[T] }
+object TypeHelper { type ApiResultFun[T] = Int => ApiResult[T] }
 import TypeHelper._
-object ApiImplFunResponse extends Api[ServerFunResult] {
-  def simple: ServerFunResult[Int] = i => ServerResult("peter", Future.successful(i))
-  def fun(a: Int): ServerFunResult[Int] = i => ServerResult("hans", Future.successful(a + i))
-  def multi(a: Int)(b: Int): ServerFunResult[Int] = i => ServerResult("hans", Future.successful(a + b + i))
+object ApiImplFunResponse extends Api[ApiResultFun] {
+  def simple: ApiResultFun[Int] = i => ApiResult("peter", Future.successful(i))
+  def fun(a: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
+  def multi(a: Int)(b: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + b + i))
 }
 
 class SlothSpec extends AsyncFreeSpec with MustMatchers {
   import TestSerializer._
 
-  implicit val serverResultFunctor = cats.derive.functor[ServerResult]
-  implicit val serverFunResultFunctor = cats.derive.functor[ServerFunResult]
+  implicit val apiResultFunctor = cats.derive.functor[ApiResult]
+  implicit val apiResultFunFunctor = cats.derive.functor[ApiResultFun]
 
   "run simple" in {
     object Backend {
@@ -57,7 +57,7 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
 
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] =
-          Backend.router(request).fold(err => Future.failed(new Exception(err.toString)), identity)
+          Backend.router(request).toEither.fold(err => Future.failed(new Exception(err.toString)), identity)
       }
 
       val client = Client[PickleType, Future, ClientException](Transport)
@@ -85,8 +85,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server[PickleType, ServerResult]
-      val router = server.route[Api[ServerResult]](ApiImplResponse)
+      val server = Server[PickleType, ApiResult]
+      val router = server.route[Api[ApiResult]](ApiImplResponse)
     }
 
     object Frontend {
@@ -94,8 +94,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
 
       object Transport extends RequestTransport[PickleType, ClientResult] {
         override def apply(request: Request[PickleType]): ClientResult[PickleType] = EitherT(
-          Backend.router(request) match {
-            case Right(ServerResult(event@_, result)) =>
+          Backend.router(request).toEither match {
+            case Right(ApiResult(event@_, result)) =>
               result.map(Right(_)).recover { case NonFatal(t) => Left(UnexpectedError(t.getMessage)) }
             case Left(err) => Future.successful(Left(SlothServerError(err)))
           })
@@ -113,8 +113,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server[PickleType, ServerFunResult]
-      val router = server.route[Api[ServerFunResult]](ApiImplFunResponse)
+      val server = Server[PickleType, ApiResultFun]
+      val router = server.route[Api[ApiResultFun]](ApiImplFunResponse)
     }
 
     object Frontend {
@@ -122,7 +122,7 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
 
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] =
-          Backend.router(request).fold(err => Future.failed(new Exception(err.toString)), _(10).result)
+          Backend.router(request).toEither.fold(err => Future.failed(new Exception(err.toString)), _(10).result)
       }
 
       val client = Client[PickleType, Future, ClientException](Transport)

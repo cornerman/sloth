@@ -27,8 +27,3 @@ object ClientFailureConvert {
     override def convert(failure: ClientFailure) = ClientException(failure)
   }
 }
-
-class LogHandler[Result[_]] {
-  def logSuccess(path: List[String], arguments: Any, result: Any): Unit = ()
-  def logRequest(path: List[String], arguments: Any, result: Result[_]): Unit = ()
-}
