@@ -26,7 +26,7 @@ object TypeHelper {
   type Event = String
   type State = String
 
-  case class ApiValue[T](result: T, events: Seq[Event])
+  case class ApiValue[T](result: T, events: List[Event])
   case class ApiResult[T](state: Future[State], value: Future[ApiValue[T]])
   type ApiResultFun[T] = Future[State] => ApiResult[T]
 
@@ -37,7 +37,7 @@ import TypeHelper._
 //server
 object ApiImpl extends Api[ApiResultFun] {
   def fun(a: Int): ApiResultFun[Int] =
-    state => ApiResult(state, Future.successful(ApiValue(a, Seq.empty)))
+    state => ApiResult(state, Future.successful(ApiValue(a, Nil)))
 }
 
 class MyceliumSpec extends AsyncFreeSpec with MustMatchers {

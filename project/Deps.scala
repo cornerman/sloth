@@ -10,7 +10,7 @@ object Deps {
   val shapeless = dep("com.chuusai" %%% "shapeless" % "2.3.3")
   val cats = dep("org.typelevel" %%% "cats-core" % "1.0.1")
   val kittens = dep("org.typelevel" %%% "kittens" % "1.0.0-RC2")
-  val mycelium = dep("com.github.cornerman" % "mycelium" % "8aa8494")
-  val chameleon = dep("com.github.cornerman" % "chameleon" % "d91b42d")
+  val mycelium = dep("com.github.cornerman.mycelium" %%% "mycelium" % "503ff2e")
+  val chameleon = dep("com.github.cornerman.chameleon" %%% "chameleon" % "d91b42d")
   val boopickle = dep("io.suzaku" %%% "boopickle" % "1.2.6")
 }
