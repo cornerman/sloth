@@ -1,5 +1,6 @@
 package test.sloth
 
+import sloth.compat._
 import chameleon._
 
 import scala.util.Try

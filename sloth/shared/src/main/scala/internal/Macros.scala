@@ -1,6 +1,7 @@
 package sloth.internal
 
 import scala.reflect.macros.blackbox.Context
+import cats.syntax.either._
 
 class Translator[C <: Context](val c: C) {
   import c.universe._
