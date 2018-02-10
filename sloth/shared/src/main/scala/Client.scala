@@ -20,14 +20,17 @@ object Client {
   def apply[PickleType, Result[_], ErrorType : ClientFailureConvert](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = new LogHandler[Result])(implicit monad: MonadError[Result, _ >: ErrorType]) = new Client[PickleType, Result, ErrorType](transport, logger)
 }
 
-trait RequestTransport[PickleType, Result[_]] {
+trait RequestTransport[PickleType, Result[_]] { transport =>
   def apply(request: Request[PickleType]): Result[PickleType]
+
+  def map[R[_]](f: Result[PickleType] => R[PickleType]): RequestTransport[PickleType, R] = new RequestTransport[PickleType, R] {
+    def apply(request: Request[PickleType]): R[PickleType] = f(transport(request))
+  }
 }
 object RequestTransport {
-  def apply[PickleType, Result[_]](f: Request[PickleType] => Result[PickleType]) =
-    new RequestTransport[PickleType, Result] {
-      def apply(request: Request[PickleType]): Result[PickleType] = f(request)
-    }
+  def apply[PickleType, Result[_]](f: Request[PickleType] => Result[PickleType]) = new RequestTransport[PickleType, Result] {
+    def apply(request: Request[PickleType]): Result[PickleType] = f(request)
+  }
 }
 
 class LogHandler[Result[_]] {
