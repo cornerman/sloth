@@ -17,39 +17,19 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Success, Failure}
 
-//shared
-trait Api[Result[_]] {
-  def fun(a: Int): Result[Int]
-}
-
-object TypeHelper {
-  type Event = String
-  type State = String
-
-  case class ApiValue[T](result: T, events: List[Event])
-  case class ApiResult[T](state: Future[State], value: Future[ApiValue[T]])
-  type ApiResultFun[T] = Future[State] => ApiResult[T]
-
-  sealed trait ApiError
-  case class SlothError(msg: String) extends ApiError
-}
 import TypeHelper._
-//server
-object ApiImpl extends Api[ApiResultFun] {
-  def fun(a: Int): ApiResultFun[Int] =
-    state => ApiResult(state, Future.successful(ApiValue(a, Nil)))
-}
 
-class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
+class MyceliumSpec extends AsyncFreeSpec with MustMatchers with BeforeAndAfterAll {
 
-  implicit val apiValueFunctor = cats.derive.functor[ApiValue]
-  implicit val apiResultFunctor = cats.derive.functor[ApiResult]
-  implicit val apiResultFunFunctor = cats.derive.functor[ApiResultFun]
-
-  implicit val system = ActorSystem()
+  implicit val system = ActorSystem("mycelium")
   implicit val materializer = ActorMaterializer()
 
   val port = 9999
+
+  override def afterAll(): Unit = {
+    system.terminate()
+    ()
+  }
 
  "run" in {
     object Backend {
@@ -97,7 +77,7 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
       val akkaConfig = AkkaWebsocketConfig(bufferSize = 5, overflowStrategy = OverflowStrategy.fail)
       val mycelium = WebsocketClient[ByteBuffer, Event, ApiError](
         new AkkaWebsocketConnection(akkaConfig), WebsocketClientConfig(), new IncidentHandler[Event])
-      val requestTransport = mycelium.toTransport(SendType.WhenConnected, requestTimeout = 30 seconds, onError = err => new Exception(err.toString))
+      val requestTransport = RequestTransport.websocketClientFuture(mycelium, SendType.WhenConnected, requestTimeout = 30 seconds)
       val client = Client[ByteBuffer, Future, ClientException](requestTransport)
 
       val api = client.wire[Api[Future]]
@@ -110,6 +90,12 @@ class MyceliumSpec extends AsyncFreeSpec with MustMatchers {
     Backend.run()
     Frontend.run()
 
-    Frontend.api.fun(1).map(_ mustEqual 1)
+    for {
+      fun <- Frontend.api.fun(1)
+      fun2 <- Frontend.api.fun(1, 2)
+    } yield {
+      fun mustEqual 1
+      fun2 mustEqual 3
+    }
   }
 }
