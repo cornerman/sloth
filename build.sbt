@@ -51,7 +51,7 @@ lazy val root = (project in file("."))
     publishLocal := {}
   )
 
-lazy val sloth = crossProject
+lazy val sloth = crossProject.crossType(CrossType.Pure)
   .settings(commonSettings)
   .settings(
     name := "sloth",
@@ -61,9 +61,6 @@ lazy val sloth = crossProject
       Deps.cats.value ::
       Deps.chameleon.value ::
 
-      Deps.mycelium.value % Optional ::
-
-      Deps.boopickle.value % Test ::
       Deps.kittens.value % Test ::
       Deps.scalaTest.value % Test ::
       Nil
