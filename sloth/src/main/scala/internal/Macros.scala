@@ -127,6 +127,7 @@ object RouterMacro {
   def impl[Trait, PickleType, Result[_]]
     (c: Context)
     (value: c.Expr[Trait])
+    (functor: c.Expr[cats.Functor[Result]])
     (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Router[PickleType, Result]] = Translator(c) { t =>
     import c.universe._
 
@@ -150,14 +151,15 @@ object RouterMacro {
       import shapeless._
 
       val value = $value
-      val impl = new ${t.internalPkg}.ServerImpl(${t.macroThis})
+      val impl = new ${t.internalPkg}.RouterImpl[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}]()($functor)
 
-      new ${t.serverPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe}] {
+      val current: ${t.serverPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] = ${t.macroThis}
+      current.orElse(new ${t.serverPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] {
         override def apply(request: ${t.corePkg}.Request[${pickleTypeTag.tpe}]) = request match {
           case ..$methodCases
-          case other => ${t.serverPkg}.ServerResult.Failure(Nil, ${t.corePkg}.ServerFailure.PathNotFound(other.path))
+          case other => ${t.serverPkg}.RouterResult.Failure(Nil, ${t.corePkg}.ServerFailure.PathNotFound(other.path))
         }
-      }
+      })
 
     """
   }

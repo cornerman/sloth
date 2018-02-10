@@ -48,8 +48,9 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server[PickleType, Future]
-      val router = server.route[Api[Future]](ApiImplFuture) orElse server.route(EmptyApi)
+      val router = Router[PickleType, Future]
+        .route[Api[Future]](ApiImplFuture)
+        .route(EmptyApi)
     }
 
     object Frontend {
@@ -85,8 +86,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server[PickleType, ApiResult]
-      val router = server.route[Api[ApiResult]](ApiImplResponse)
+      val router = Router[PickleType, ApiResult]
+        .route[Api[ApiResult]](ApiImplResponse)
     }
 
     object Frontend {
@@ -113,8 +114,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Backend {
       import sloth.server._
 
-      val server = Server[PickleType, ApiResultFun]
-      val router = server.route[Api[ApiResultFun]](ApiImplFunResponse)
+      val router = Router[PickleType, ApiResultFun]
+        .route[Api[ApiResultFun]](ApiImplFunResponse)
     }
 
     object Frontend {

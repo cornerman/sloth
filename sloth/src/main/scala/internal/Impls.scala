@@ -2,30 +2,29 @@ package sloth.internal
 
 import sloth.core._
 import sloth.client.Client
-import sloth.server.{Server, ServerResult}
+import sloth.server.RouterResult
 
 import chameleon._
+import cats.Functor
 import cats.syntax.all._
 import shapeless._
 import shapeless.ops.hlist._
 
 import scala.util.{Success, Failure, Try}
 
-class ServerImpl[PickleType, Result[_]](server: Server[PickleType, Result]) {
-  import server._
-
-  def execute[T <: HList, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType], ev: ToTraversable.Aux[T, List, HList]): ServerResult[Result, PickleType] = {
+class RouterImpl[PickleType, Result[_] : Functor] {
+  def execute[T <: HList, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType], ev: ToTraversable.Aux[T, List, HList]): RouterResult[Result, PickleType] = {
     deserializer.deserialize(arguments) match {
       case Right(arguments) =>
         val paramsList = arguments.toList.map(_.runtimeList)
         Try(call(arguments)) match {
           case Success(result) =>
-            ServerResult.Success(paramsList, result.map { value =>
-              ServerResult.Value(value, serializer.serialize(value))
+            RouterResult.Success(paramsList, result.map { value =>
+              RouterResult.Value(value, serializer.serialize(value))
             })
-          case Failure(err) => ServerResult.Failure[PickleType](paramsList, ServerFailure.HandlerError(err))
+          case Failure(err) => RouterResult.Failure[PickleType](paramsList, ServerFailure.HandlerError(err))
         }
-      case Left(err) => ServerResult.Failure[PickleType](Nil, ServerFailure.DeserializerError(err))
+      case Left(err) => RouterResult.Failure[PickleType](Nil, ServerFailure.DeserializerError(err))
     }
   }
 }

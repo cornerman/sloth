@@ -12,12 +12,11 @@ class ImplsSpec extends FreeSpec with MustMatchers {
 
   "server impl" - {
     import sloth.server._
-    import ServerResult._
-    import sloth.internal.ServerImpl
+    import RouterResult._
+    import sloth.internal.RouterImpl
 
     "works" in {
-      val server = Server[PickleType, cats.Id]
-      val impl = new ServerImpl(server)
+      val impl = new RouterImpl[PickleType, cats.Id]
 
       val result = impl.execute[(Int :: HNil) :: HNil, String]("api" :: Nil, (1 :: HNil) :: HNil)(_.runtimeList.head.asInstanceOf[HList].runtimeList.head.toString)
 
@@ -25,8 +24,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
     }
 
     "catch exception" in {
-      val server = Server[PickleType, cats.Id]
-      val impl = new ServerImpl(server)
+      val impl = new RouterImpl[PickleType, cats.Id]
 
       val exception = new Exception("meh")
       val result = impl.execute[(Int :: HNil) :: HNil, String]("api" :: Nil, (1 :: HNil) :: HNil)(_ => throw exception)
