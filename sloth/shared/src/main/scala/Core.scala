@@ -1,6 +1,10 @@
 package sloth.core
 
+import scala.annotation.StaticAnnotation
+
 case class Request[T](path: List[String], payload: T)
+
+case class PathName(val name: String) extends StaticAnnotation
 
 sealed trait ServerFailure
 object ServerFailure {

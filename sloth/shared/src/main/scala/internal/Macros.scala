@@ -27,24 +27,29 @@ class Translator[C <: Context](val c: C) {
   } yield (symbol, methodType)
 
   //TODO rename overloaded methods to fun1, fun2, fun3 or append TypeSignature instead of number?
-  private def validateAllMethods(methods: List[(MethodSymbol, Type)]): List[Either[String, (MethodSymbol, Type)]] =
-    methods.groupBy(_._1.name).map {
+  private def validateAllMethods(tpe: Type, methods: List[(MethodSymbol, Type)]): List[Either[String, (MethodSymbol, Type)]] =
+    methods.groupBy(m => methodPath(tpe, m._1)).map {
       case (_, x :: Nil) => Right(x)
-      case (k, _) => Left(s"method $k is overloaded")
+      case (k, ms) => Left(s"""method $k is overloaded (rename the method or add a @PathName("other-name"))""")
     }.toList
 
-  private def abtractMethodsInType(tpe: Type): List[(MethodSymbol, Type)] = for {
-    member <- tpe.members.toList
+  private def findPathName(annotations: Seq[Annotation]) = annotations.reverse.map(_.tree).collectFirst {
+    case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.core.PathName] => name.toString
+  }
+
+  private def definedMethodsInType(tpe: Type): List[(MethodSymbol, Type)] = for {
+    member <- tpe.decls.toList
     if member.isMethod
+    if member.isPublic
+    if !member.isConstructor
     symbol = member.asMethod
-    if symbol.isAbstract
   } yield (symbol, symbol.typeSignatureIn(tpe))
 
   def supportedMethodsInType(tpe: Type, expectedReturnType: Type): List[(MethodSymbol, Type)] = {
-    val methods = abtractMethodsInType(tpe)
+    val methods = definedMethodsInType(tpe)
     val validatedMethods = methods.map { case (sym, tpe) => validateMethod(expectedReturnType, sym, tpe) }
     val validatedType = eitherSeq(validatedMethods)
-      .flatMap(methods => eitherSeq(validateAllMethods(methods)))
+      .flatMap(methods => eitherSeq(validateAllMethods(tpe, methods)))
 
     validatedType match {
       case Right(methods) => methods
@@ -53,8 +58,8 @@ class Translator[C <: Context](val c: C) {
   }
 
   def methodPath(tpe: Type, m: MethodSymbol): List[String] =
-    tpe.typeSymbol.name.toString ::
-    m.name.toString ::
+    findPathName(tpe.typeSymbol.annotations).getOrElse(tpe.typeSymbol.name.toString) ::
+    findPathName(m.annotations).getOrElse(m.name.toString) ::
     Nil
 
   def paramsAsValDefs(m: Type): List[List[ValDef]] =
@@ -89,7 +94,7 @@ object TraitMacro {
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val methodImplList = validMethods.collect { case (symbol, method) =>
+    val methodImplList = validMethods.collect { case (symbol, method) if symbol.isAbstract =>
       val path = t.methodPath(traitTag.tpe, symbol)
       val parameters =  t.paramsAsValDefs(method)
       val paramListType = t.paramTypesAsHList(method)
