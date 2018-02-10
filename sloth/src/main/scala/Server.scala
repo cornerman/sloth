@@ -33,10 +33,15 @@ object ServerResult {
 
 trait Router[PickleType, Result[_]] { router =>
   def apply(request: Request[PickleType]): ServerResult[Result, PickleType]
-  def orElse(otherRouter: Router[PickleType, Result]) = new Router[PickleType, Result] {
+
+  final def orElse(otherRouter: Router[PickleType, Result]) = new Router[PickleType, Result] {
     def apply(request: Request[PickleType]): ServerResult[Result, PickleType] = router(request) match {
       case ServerResult.Failure(_, ServerFailure.PathNotFound(_)) => otherRouter(request)
       case other => other
     }
+  }
+
+  final def map[R[_]](f: ServerResult[Result, PickleType] => ServerResult[R, PickleType]): Router[PickleType, R] = new Router[PickleType, R] {
+    def apply(request: Request[PickleType]): ServerResult[R, PickleType] = f(router(request))
   }
 }

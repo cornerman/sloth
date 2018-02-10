@@ -23,7 +23,7 @@ object Client {
 trait RequestTransport[PickleType, Result[_]] { transport =>
   def apply(request: Request[PickleType]): Result[PickleType]
 
-  def map[R[_]](f: Result[PickleType] => R[PickleType]): RequestTransport[PickleType, R] = new RequestTransport[PickleType, R] {
+  final def map[R[_]](f: Result[PickleType] => R[PickleType]): RequestTransport[PickleType, R] = new RequestTransport[PickleType, R] {
     def apply(request: Request[PickleType]): R[PickleType] = f(transport(request))
   }
 }
