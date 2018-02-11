@@ -1,6 +1,5 @@
-package sloth.client
+package sloth
 
-import sloth.core._
 import sloth.internal.TraitMacro
 
 import cats.MonadError

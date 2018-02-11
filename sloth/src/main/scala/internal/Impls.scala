@@ -1,9 +1,6 @@
 package sloth.internal
 
-import sloth.core._
-import sloth.client.Client
-import sloth.server.RouterResult
-
+import sloth._
 import chameleon._
 import cats.Functor
 import cats.syntax.all._

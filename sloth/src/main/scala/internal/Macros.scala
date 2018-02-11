@@ -6,9 +6,7 @@ import cats.syntax.either._
 class Translator[C <: Context](val c: C) {
   import c.universe._
 
-  val corePkg = q"_root_.sloth.core"
-  val serverPkg = q"_root_.sloth.server"
-  val clientPkg = q"_root_.sloth.client"
+  val slothPkg = q"_root_.sloth"
   val internalPkg = q"_root_.sloth.internal"
   val macroThis = q"${c.prefix.tree}"
 
@@ -34,7 +32,7 @@ class Translator[C <: Context](val c: C) {
     }.toList
 
   private def findPathName(annotations: Seq[Annotation]) = annotations.reverse.map(_.tree).collectFirst {
-    case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.core.PathName] => name.toString
+    case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.PathName] => name.toString
   }
 
   private def definedMethodsInType(tpe: Type): List[(MethodSymbol, Type)] = for {
@@ -122,7 +120,7 @@ object TraitMacro {
 }
 
 object RouterMacro {
-  import sloth.server.Router
+  import sloth.Router
 
   def impl[Trait, PickleType, Result[_]]
     (c: Context)
@@ -140,7 +138,7 @@ object RouterMacro {
       val innerReturnType = method.finalResultType.typeArgs.head
 
       cq"""
-        ${t.corePkg}.Request($path, payload) =>
+        ${t.slothPkg}.Request($path, payload) =>
           impl.execute[$paramListType, $innerReturnType]($path, payload) { args =>
             value.${symbol.name.toTermName}(...$argParams)
           }
@@ -153,11 +151,11 @@ object RouterMacro {
       val value = $value
       val impl = new ${t.internalPkg}.RouterImpl[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}]()($functor)
 
-      val current: ${t.serverPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] = ${t.macroThis}
-      current.orElse(new ${t.serverPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] {
-        override def apply(request: ${t.corePkg}.Request[${pickleTypeTag.tpe}]) = request match {
+      val current: ${t.slothPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] = ${t.macroThis}
+      current.orElse(new ${t.slothPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] {
+        override def apply(request: ${t.slothPkg}.Request[${pickleTypeTag.tpe}]) = request match {
           case ..$methodCases
-          case other => ${t.serverPkg}.RouterResult.Failure(Nil, ${t.corePkg}.ServerFailure.PathNotFound(other.path))
+          case other => ${t.slothPkg}.RouterResult.Failure(Nil, ${t.slothPkg}.ServerFailure.PathNotFound(other.path))
         }
       })
 

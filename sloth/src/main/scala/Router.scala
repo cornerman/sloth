@@ -1,6 +1,5 @@
-package sloth.server
+package sloth
 
-import sloth.core._
 import sloth.internal.RouterMacro
 
 import cats.Functor

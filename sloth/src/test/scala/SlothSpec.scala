@@ -3,7 +3,7 @@ package test.sloth
 import org.scalatest._
 import scala.concurrent.Future
 import scala.util.control.NonFatal
-import sloth.core._
+import sloth._
 import cats.implicits._
 
 trait EmptyApi
@@ -46,16 +46,12 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
 
   "run simple" in {
     object Backend {
-      import sloth.server._
-
       val router = Router[PickleType, Future]
         .route[Api[Future]](ApiImplFuture)
         .route(EmptyApi)
     }
 
     object Frontend {
-      import sloth.client._
-
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] =
           Backend.router(request).toEither.fold(err => Future.failed(new Exception(err.toString)), identity)
@@ -84,15 +80,11 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     type ClientResult[T] = EitherT[Future, ApiError, T]
 
     object Backend {
-      import sloth.server._
-
       val router = Router[PickleType, ApiResult]
         .route[Api[ApiResult]](ApiImplResponse)
     }
 
     object Frontend {
-      import sloth.client._
-
       object Transport extends RequestTransport[PickleType, ClientResult] {
         override def apply(request: Request[PickleType]): ClientResult[PickleType] = EitherT(
           Backend.router(request).toEither match {
@@ -112,15 +104,11 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
  "run different result types with fun" in {
 
     object Backend {
-      import sloth.server._
-
       val router = Router[PickleType, ApiResultFun]
         .route[Api[ApiResultFun]](ApiImplFunResponse)
     }
 
     object Frontend {
-      import sloth.client._
-
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] =
           Backend.router(request).toEither.fold(err => Future.failed(new Exception(err.toString)), _(10).result)

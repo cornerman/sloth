@@ -2,7 +2,7 @@ package test.sloth
 
 import org.scalatest._
 
-import sloth.core._
+import sloth._
 import cats._
 import cats.implicits._
 import shapeless._
@@ -11,7 +11,6 @@ class ImplsSpec extends FreeSpec with MustMatchers {
   import TestSerializer._
 
   "server impl" - {
-    import sloth.server._
     import RouterResult._
     import sloth.internal.RouterImpl
 
@@ -34,7 +33,6 @@ class ImplsSpec extends FreeSpec with MustMatchers {
   }
 
   "client impl" - {
-    import sloth.client._
     import sloth.internal.ClientImpl
 
     type EitherResult[T] = Either[ClientFailure, T]
