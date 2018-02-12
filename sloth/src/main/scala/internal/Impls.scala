@@ -10,7 +10,7 @@ import shapeless.ops.hlist._
 import scala.util.{Success, Failure, Try}
 
 class RouterImpl[PickleType, Result[_] : Functor] {
-  def execute[T <: HList, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType], ev: ToTraversable.Aux[T, List, HList]): RouterResult[Result, PickleType] = {
+  def execute[T <: HList, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType], ev: ToTraversable.Aux[T, List, HList]): RouterResult[PickleType, Result] = {
     deserializer.deserialize(arguments) match {
       case Right(arguments) =>
         val paramsList = arguments.toList.map(_.runtimeList)
