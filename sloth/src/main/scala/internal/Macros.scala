@@ -19,6 +19,7 @@ class Translator[C <: Context](val c: C) {
       case _: PolyType => Left(s"method ${symbol.name} has type parameters")
       case _ => Left(s"method ${symbol.name} has unsupported type")
     }
+    _ <- valid(methodType.paramLists.flatten.size <= 22, s"method ${symbol.name} has more than 22 arguments")
     methodResult = methodType.finalResultType.typeConstructor
     returnResult = expectedReturnType.finalResultType.typeConstructor
     _ <- valid(methodResult <:< returnResult, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
@@ -60,20 +61,48 @@ class Translator[C <: Context](val c: C) {
     findPathName(m.annotations).getOrElse(m.name.toString) ::
     Nil
 
-  def paramsAsValDefs(m: Type): List[List[ValDef]] =
-    m.paramLists.map(_.map(p => q"val ${p.name.toTermName}: ${p.typeSignature}"))
 
-  def paramValuesAsHList(m: Type): Tree =
-    valuesAsHList(m.paramLists.map(list => valuesAsHList(list.map(a => q"${a.name.toTermName}"))))
+  def paramAsValDef(p: Symbol): ValDef = q"val ${p.name.toTermName}: ${p.typeSignature}"
+  def paramsAsValDefs(m: Type): List[List[ValDef]] = m.paramLists.map(_.map(paramAsValDef))
 
-  def paramTypesAsHList(m: Type): Tree =
-    typesAsHList(m.paramLists.map(list => typesAsHList(list.map(a => tq"${a.typeSignature}"))))
+  def paramsObjectName(path: List[String]) = "_sloth_" + path.mkString("_")
+  case class ParamsObject(tree: Tree, tpe: Tree)
+  def paramsAsObject(tpe: Type, path: List[String]): ParamsObject = {
+    val params = tpe.paramLists.flatten
+    val name = paramsObjectName(path)
+    val termName = TermName(name)
+    val typeName = TypeName(name)
 
-  def valuesAsHList[T](list: List[Tree]): Tree =
-    list.foldRight[Tree](q"HNil")((b, a) => q"$b :: $a")
+    params match {
+      case Nil => ParamsObject(
+        tree = q"case object $termName",
+        tpe = tq"$termName.type"
+      )
+      //TODO extends AnyVal (but value class may not be a local class)
+      // case head :: Nil => ParamsObject(
+      //   tree = q"case class $typeName(${paramAsValDef(head)}) extends AnyVal",
+      //   tpe = tq"$typeName"
+      // )
+      case list => ParamsObject(
+        tree = q"case class $typeName(..${list.map(paramAsValDef)})",
+        tpe = tq"$typeName"
+      )
+    }
+  }
+  def objectToParams(tpe: Type, obj: TermName): List[List[Tree]] =
+    tpe.paramLists.map(_.map(p => q"$obj.${p.name.toTermName}"))
 
-  def typesAsHList[T](list: List[Tree]): Tree =
-    list.foldRight[Tree](tq"HNil")((b, a) => tq"$b :: $a")
+  def newParamsObject(tpe: Type, path: List[String]): Tree = {
+    val params = tpe.paramLists.flatten
+    val name = paramsObjectName(path)
+    val termName = TermName(name)
+    val typeName = TypeName(name)
+
+    params match {
+      case Nil => q"$termName"
+      case list => q"""new $typeName(..${params.map(p => q"${p.name.toTermName}")})"""
+    }
+  }
 }
 
 object Translator {
@@ -92,26 +121,25 @@ object TraitMacro {
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val methodImplList = validMethods.collect { case (symbol, method) if symbol.isAbstract =>
+    val (methodImplList, paramsObjects) = validMethods.collect { case (symbol, method) if symbol.isAbstract =>
       val path = t.methodPath(traitTag.tpe, symbol)
       val parameters =  t.paramsAsValDefs(method)
-      val paramListType = t.paramTypesAsHList(method)
-      val paramListValue = t.paramValuesAsHList(method)
+      val paramsObject = t.paramsAsObject(method, path)
+      val paramListValue = t.newParamsObject(method, path)
       val innerReturnType = method.finalResultType.typeArgs.head
 
-      q"""
+      (q"""
         override def ${symbol.name}(...$parameters): ${method.finalResultType} = {
-          impl.execute[$paramListType, $innerReturnType]($path, $paramListValue)
+          impl.execute[${paramsObject.tpe}, $innerReturnType]($path, $paramListValue)
         }
-      """
-    }
+      """, paramsObject.tree)
+    }.unzip
     val methodImpls = if (methodImplList.isEmpty) List(EmptyTree) else methodImplList
 
     q"""
-      import shapeless._
-
       val impl = new ${t.internalPkg}.ClientImpl(${t.macroThis})
 
+      ..$paramsObjects
       new ${traitTag.tpe.finalResultType} {
         ..$methodImpls
       }
@@ -131,31 +159,31 @@ object RouterMacro {
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val methodCases = validMethods.map { case (symbol, method) =>
+    val (methodCases, paramsObjects) = validMethods.map { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
-      val paramListType = t.paramTypesAsHList(method)
-      val argParams = method.paramLists.zipWithIndex.map { case (l, i) => List.tabulate(l.size)(j => q"{ val a = args($i); a($j) }") }
+      val paramsObject = t.paramsAsObject(method, path)
+      val argParams: List[List[Tree]] = t.objectToParams(method, TermName("args"))
       val innerReturnType = method.finalResultType.typeArgs.head
 
-      cq"""
+      (cq"""
         ${t.slothPkg}.Request($path, payload) =>
-          impl.execute[$paramListType, $innerReturnType]($path, payload) { args =>
+          impl.execute[${paramsObject.tpe}, $innerReturnType]($path, payload) { args =>
             value.${symbol.name.toTermName}(...$argParams)
           }
-      """
-    }
+      """, paramsObject.tree)
+    }.unzip
 
     q"""
-      import shapeless._
-
       val value = $value
       val impl = new ${t.internalPkg}.RouterImpl[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}]()($functor)
+
+      ..$paramsObjects
 
       val current: ${t.slothPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] = ${t.macroThis}
       current.orElse(new ${t.slothPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] {
         override def apply(request: ${t.slothPkg}.Request[${pickleTypeTag.tpe}]) = request match {
           case ..$methodCases
-          case other => ${t.slothPkg}.RouterResult.Failure(Nil, ${t.slothPkg}.ServerFailure.PathNotFound(other.path))
+          case other => ${t.slothPkg}.RouterResult.Failure(None, ${t.slothPkg}.ServerFailure.PathNotFound(other.path))
         }
       })
 

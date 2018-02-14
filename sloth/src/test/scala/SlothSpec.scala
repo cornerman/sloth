@@ -5,6 +5,18 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import sloth._
 import cats.implicits._
+// import boopickle.Default._
+// import chameleon.ext.boopickle._
+// import java.nio.ByteBuffer
+import io.circe._, io.circe.syntax._, io.circe.generic.auto._
+import chameleon._
+import chameleon.ext.circe._
+
+object Pickling {
+  // type PickleType = ByteBuffer
+  type PickleType = String
+}
+import Pickling._
 
 trait EmptyApi
 object EmptyApi extends EmptyApi
@@ -13,6 +25,7 @@ object EmptyApi extends EmptyApi
 trait Api[Result[_]] {
   def simple: Result[Int]
   def fun(a: Int): Result[Int]
+  def fun2(a: Int, b: String): Result[Int]
   def multi(a: Int)(b: Int): Result[Int]
 }
 
@@ -20,6 +33,7 @@ trait Api[Result[_]] {
 object ApiImplFuture extends Api[Future] {
   def simple: Future[Int] = Future.successful(1)
   def fun(a: Int): Future[Int] = Future.successful(a)
+  def fun2(a: Int, b: String): Future[Int] = Future.successful(a)
   def multi(a: Int)(b: Int): Future[Int] = Future.successful(a)
 }
 //or
@@ -27,6 +41,7 @@ case class ApiResult[T](event: String, result: Future[T])
 object ApiImplResponse extends Api[ApiResult] {
   def simple: ApiResult[Int] = ApiResult("peter", Future.successful(1))
   def fun(a: Int): ApiResult[Int] = ApiResult("hans", Future.successful(a))
+  def fun2(a: Int, b: String): ApiResult[Int] = ApiResult("hans", Future.successful(a))
   def multi(a: Int)(b: Int): ApiResult[Int] = ApiResult("hans", Future.successful(a + b))
 }
 //or
@@ -35,12 +50,11 @@ import TypeHelper._
 object ApiImplFunResponse extends Api[ApiResultFun] {
   def simple: ApiResultFun[Int] = i => ApiResult("peter", Future.successful(i))
   def fun(a: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
+  def fun2(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
   def multi(a: Int)(b: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + b + i))
 }
 
 class SlothSpec extends AsyncFreeSpec with MustMatchers {
-  import TestSerializer._
-
   implicit val apiResultFunctor = cats.derive.functor[ApiResult]
   implicit val apiResultFunFunctor = cats.derive.functor[ApiResultFun]
 
@@ -98,6 +112,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
       val api = client.wire[Api[ClientResult]]
     }
 
+    Frontend.api.fun2(1, "AAAA")
+    Frontend.api.multi(11)(3)
     Frontend.api.fun(1).value.map(_.right.get mustEqual 1)
   }
 

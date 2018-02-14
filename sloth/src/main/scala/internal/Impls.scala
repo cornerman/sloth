@@ -4,24 +4,21 @@ import sloth._
 import chameleon._
 import cats.Functor
 import cats.syntax.all._
-import shapeless._
-import shapeless.ops.hlist._
 
 import scala.util.{Success, Failure, Try}
 
 class RouterImpl[PickleType, Result[_] : Functor] {
-  def execute[T <: HList, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType], ev: ToTraversable.Aux[T, List, HList]): RouterResult[PickleType, Result] = {
+  def execute[T <: Product, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): RouterResult[PickleType, Result] = {
     deserializer.deserialize(arguments) match {
       case Right(arguments) =>
-        val paramsList = arguments.toList.map(_.runtimeList)
         Try(call(arguments)) match {
           case Success(result) =>
-            RouterResult.Success(paramsList, result.map { value =>
+            RouterResult.Success(arguments, result.map { value =>
               RouterResult.Value(value, serializer.serialize(value))
             })
-          case Failure(err) => RouterResult.Failure[PickleType](paramsList, ServerFailure.HandlerError(err))
+          case Failure(err) => RouterResult.Failure[PickleType](Some(arguments), ServerFailure.HandlerError(err))
         }
-      case Left(err) => RouterResult.Failure[PickleType](Nil, ServerFailure.DeserializerError(err))
+      case Left(err) => RouterResult.Failure[PickleType](None, ServerFailure.DeserializerError(err))
     }
   }
 }
@@ -29,8 +26,7 @@ class RouterImpl[PickleType, Result[_] : Functor] {
 class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Result, ErrorType]) {
   import client._
 
-  def execute[T <: HList, R](path: List[String], arguments: T)(implicit deserializer: Deserializer[R, PickleType], serializer: Serializer[T, PickleType], ev: ToTraversable.Aux[T, List, HList]): Result[R] = {
-    val paramsList = arguments.toList.map(_.runtimeList)
+  def execute[T <: Product, R](path: List[String], arguments: T)(implicit deserializer: Deserializer[R, PickleType], serializer: Serializer[T, PickleType]): Result[R] = {
     val serializedArguments = serializer.serialize(arguments)
     val request: Request[PickleType] = Request(path, serializedArguments)
     val result: Result[R] = Try(transport(request)) match {
@@ -43,7 +39,7 @@ class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Re
       case Failure(t) => monad.raiseError(failureConverter.convert(ClientFailure.TransportError(t)))
     }
 
-    logger.logRequest(path, paramsList, result)
+    logger.logRequest(path, arguments, result)
     result
   }
 }

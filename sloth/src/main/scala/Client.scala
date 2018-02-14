@@ -4,6 +4,7 @@ import sloth.internal.TraitMacro
 
 import cats.MonadError
 
+//TODO: move implicits to wire method
 class Client[PickleType, Result[_], ErrorType](
   private[sloth] val transport: RequestTransport[PickleType, Result],
   private[sloth] val logger: LogHandler[Result]
@@ -33,5 +34,5 @@ object RequestTransport {
 }
 
 class LogHandler[Result[_]] {
-  def logRequest(path: List[String], arguments: List[List[Any]], result: Result[_]): Unit = ()
+  def logRequest(path: List[String], argumentObject: Product, result: Result[_]): Unit = ()
 }

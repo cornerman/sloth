@@ -57,11 +57,14 @@ lazy val sloth = crossProject.crossType(CrossType.Pure)
     name := "sloth",
     libraryDependencies ++=
       Deps.scalaReflect.value % scalaVersion.value % Provided ::
-      Deps.shapeless.value ::
       Deps.cats.value ::
       Deps.chameleon.value ::
 
       Deps.kittens.value % Test ::
+      Deps.boopickle.value % Test ::
+      Deps.circe.core.value % Test ::
+      Deps.circe.generic.value % Test ::
+      Deps.circe.parser.value % Test ::
       Deps.scalaTest.value % Test ::
       Nil
   )
