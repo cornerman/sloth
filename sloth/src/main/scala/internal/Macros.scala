@@ -19,7 +19,6 @@ class Translator[C <: Context](val c: C) {
       case _: PolyType => Left(s"method ${symbol.name} has type parameters")
       case _ => Left(s"method ${symbol.name} has unsupported type")
     }
-    _ <- valid(methodType.paramLists.flatten.size <= 22, s"method ${symbol.name} has more than 22 arguments")
     methodResult = methodType.finalResultType.typeConstructor
     returnResult = expectedReturnType.finalResultType.typeConstructor
     _ <- valid(methodResult <:< returnResult, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
