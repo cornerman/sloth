@@ -39,7 +39,7 @@ val router = Router[ByteBuffer, Future].route[Api](ApiImpl)
 ```
 
 Use it to route requests to your Api implementation:
-```
+```scala
 val bytes = Pickle.intoBytes(1)
 val result = router(Request[ByteBuffer]("Api" :: "fun" :: Nil, bytes))
 ```
