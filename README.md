@@ -38,6 +38,12 @@ import cats.implicits._
 val router = Router[ByteBuffer, Future].route[Api](ApiImpl)
 ```
 
+Use it to route requests to your Api implementation:
+```
+val bytes = Pickle.intoBytes(1)
+val result = router(Request[ByteBuffer]("Api" :: "fun" :: Nil, bytes))
+```
+
 ### Client
 
 Generate an implementation for `Api` on the client side:
@@ -47,7 +53,6 @@ import boopickle.Default._
 import chameleon.ext.boopickle._
 import java.nio.ByteBuffer
 import cats.implicits._
-import covenant.http._
 
 object Transport extends RequestTransport[PickleType, Future] {
     override def apply(request: Request[PickleType]): Future[PickleType] = ??? // implement the transport layer
