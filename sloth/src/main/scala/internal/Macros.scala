@@ -69,13 +69,12 @@ class Translator[C <: Context](val c: C) {
   def paramsAsObject(tpe: Type, path: List[String]): ParamsObject = {
     val params = tpe.paramLists.flatten
     val name = paramsObjectName(path)
-    val termName = TermName(name)
     val typeName = TypeName(name)
 
     params match {
       case Nil => ParamsObject(
-        tree = q"case object $termName",
-        tpe = tq"$termName.type"
+        tree = EmptyTree,
+        tpe = tq"$slothPkg.Arguments.Empty.type"
       )
       //TODO extends AnyVal (but value class may not be a local class)
       // case head :: Nil => ParamsObject(
@@ -94,11 +93,10 @@ class Translator[C <: Context](val c: C) {
   def newParamsObject(tpe: Type, path: List[String]): Tree = {
     val params = tpe.paramLists.flatten
     val name = paramsObjectName(path)
-    val termName = TermName(name)
     val typeName = TypeName(name)
 
     params match {
-      case Nil => q"$termName"
+      case Nil => q"$slothPkg.Arguments.Empty"
       case list => q"""new $typeName(..${params.map(p => q"${p.name.toTermName}")})"""
     }
   }

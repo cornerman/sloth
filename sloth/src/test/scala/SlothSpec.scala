@@ -5,16 +5,17 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import sloth._
 import cats.implicits._
-// import boopickle.Default._
-// import chameleon.ext.boopickle._
-// import java.nio.ByteBuffer
-import io.circe._, io.circe.syntax._, io.circe.generic.auto._
+
 import chameleon._
-import chameleon.ext.circe._
+import chameleon.ext.boopickle._
+import boopickle.Default._
+import java.nio.ByteBuffer
+// import chameleon.ext.circe._
+// import io.circe._, io.circe.syntax._, io.circe.generic.auto._
 
 object Pickling {
-  // type PickleType = ByteBuffer
-  type PickleType = String
+  type PickleType = ByteBuffer
+  // type PickleType = String
 }
 import Pickling._
 
