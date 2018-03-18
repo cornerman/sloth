@@ -40,7 +40,6 @@ val router = Router[ByteBuffer, Future].route[Api](ApiImpl)
 
 Use it to route requests to your Api implementation:
 ```scala
-val bytes = Pickle.intoBytes(1)
 val result = router(Request[ByteBuffer]("Api" :: "fun" :: Nil, bytes))
 ```
 
@@ -55,7 +54,13 @@ import java.nio.ByteBuffer
 import cats.implicits._
 
 object Transport extends RequestTransport[PickleType, Future] {
-    override def apply(request: Request[PickleType]): Future[PickleType] = ??? // implement the transport layer
+    // implement the transport layer. this example just calls the router directly.
+    // in reality, the request would be send over a connection.
+    override def apply(request: Request[PickleType]): Future[PickleType] =
+        router(request).toEither match {
+            case Right(result) => result
+            case Left(err) => Future.failed(new Exception(err.toString))
+        }
 }
 
 val client = Client[PickleType, Future, ClientException](Transport)

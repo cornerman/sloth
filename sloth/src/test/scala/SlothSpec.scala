@@ -69,7 +69,10 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     object Frontend {
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] =
-          Backend.router(request).toEither.fold(err => Future.failed(new Exception(err.toString)), identity)
+          Backend.router(request).toEither match {
+            case Right(result) => result
+            case Left(err) => Future.failed(new Exception(err.toString))
+          }
       }
 
       val client = Client[PickleType, Future, ClientException](Transport)
