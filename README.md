@@ -9,6 +9,12 @@ This library is inspired by [autowire](https://github.com/lihaoyi/autowire). Som
 * Higher-kinded generic return types for API traits (`cats.MonadError` in client, `cats.Functor` in server)
 * Generates custom case classes for each function
 
+Get via jitpack (add the following to your `build.sbt`):
+```scala
+resolvers += "jitpack" at "https://jitpack.io"
+libraryDependencies += "com.github.cornerman.sloth" %%% "sloth" % "master-SNAPSHOT"
+```
+
 ## Usage
 
 Define a trait as your `Api`:
