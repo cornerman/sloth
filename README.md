@@ -166,6 +166,49 @@ trait Api {
 }
 ```
 
+## How does it work
+
+Sloth derives all information about an API from a scala trait. For example:
+```scala
+// @PathName("apiName")
+trait Api {
+    // @PathName("funName")
+    def fun(a: Int, b: String)(c: Double): F[Int]
+}
+```
+
+For each declared method in this trait (in this case `fun`):
+* Calculate method path: `List("Api", "fun")` (`PathName` annotations on the trait or method are taken into account).
+* Generate a case class representing the parameter lists: `case class _sloth_Api_fun(a: Int, b: String, c: Double)`.
+
+### Server
+
+When calling `router.route[Api](impl)`, a macro generates a function that maps a method path and a pickled case class to a pickled result:
+
+```scala
+path match {
+    case "Api" :: "fun" =>
+        // deserialize payload
+        // call Api implementation impl with arguments
+        // return serialized response
+    case _ => // PathNotFound failure
+}
+```
+
+### Client
+
+When calling `client.wire[Api](transport)`, a macro generates an instance of `Api` by implementing each method using the provided transport:
+
+```scala
+new Api {
+    def fun(a: Int, b: String)(c: Double): F[Int] = {
+        // serialize arguments
+        // call RequestTransport transport with method path and arguments
+        // return deserialized response
+    }
+}
+```
+
 ## Limitations
 
 * Type parameters on methods in the API trait are not supported.
