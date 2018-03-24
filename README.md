@@ -97,7 +97,7 @@ In your server, you can use any `cats.Functor` as `F`, for example:
 ```scala
 type ServerResult[T] = User => T
 
-object ApiImpl extends Api[Fun ] {
+object ApiImpl extends Api[ServerResult] {
     def fun(a: Int): User => Int = { user =>
         println(s"User: $user")
         a + 1
