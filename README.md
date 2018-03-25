@@ -201,7 +201,7 @@ path match {
 
 ### Client
 
-When calling `client.wire[Api](transport)`, a macro generates an instance of `Api` by implementing each method using the provided transport:
+When calling `client.wire[Api]`, a macro generates an instance of `Api` by implementing each method using the provided transport:
 
 ```scala
 new Api {
