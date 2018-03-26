@@ -11,13 +11,19 @@ import chameleon.ext.boopickle._
 import boopickle.Default._
 import java.nio.ByteBuffer
 // import chameleon.ext.circe._
-// import io.circe._, io.circe.syntax._, io.circe.generic.auto._
+// import io.circe._, io.circe.syntax._, io.circe.generic.extras.auto._, io.circe.generic.extras._
+
+case class Foo(bar: Int)
 
 object Pickling {
   type PickleType = ByteBuffer
   // type PickleType = String
+  // implicit val config: Configuration = Configuration.default.withDefaults.withKebabCaseMemberNames
 }
 import Pickling._
+
+sealed trait Meh
+case class Meht(i: Int, sCoolJay: String = "blue") extends Meh
 
 trait EmptyApi
 object EmptyApi extends EmptyApi
@@ -25,7 +31,7 @@ object EmptyApi extends EmptyApi
 //shared
 trait Api[Result[_]] {
   def simple: Result[Int]
-  def fun(a: Int, b: String = "drei"): Result[Int]
+  def fun(a: Int, b: Meh = Meht(1)): Result[Int]
   def fun2(a: Int, b: String): Result[Int]
   def multi(a: Int)(b: Int): Result[Int]
 }
@@ -33,7 +39,7 @@ trait Api[Result[_]] {
 //server
 object ApiImplFuture extends Api[Future] {
   def simple: Future[Int] = Future.successful(1)
-  def fun(a: Int, b: String): Future[Int] = Future.successful(a)
+  def fun(a: Int, b: Meh): Future[Int] = Future.successful(a)
   def fun2(a: Int, b: String): Future[Int] = Future.successful(a)
   def multi(a: Int)(b: Int): Future[Int] = Future.successful(a)
 }
@@ -41,7 +47,7 @@ object ApiImplFuture extends Api[Future] {
 case class ApiResult[T](event: String, result: Future[T])
 object ApiImplResponse extends Api[ApiResult] {
   def simple: ApiResult[Int] = ApiResult("peter", Future.successful(1))
-  def fun(a: Int, b: String): ApiResult[Int] = ApiResult("hans", Future.successful(a))
+  def fun(a: Int, b: Meh): ApiResult[Int] = ApiResult("hans", Future.successful(a))
   def fun2(a: Int, b: String): ApiResult[Int] = ApiResult("hans", Future.successful(a))
   def multi(a: Int)(b: Int): ApiResult[Int] = ApiResult("hans", Future.successful(a + b))
 }
@@ -50,7 +56,7 @@ object TypeHelper { type ApiResultFun[T] = Int => ApiResult[T] }
 import TypeHelper._
 object ApiImplFunResponse extends Api[ApiResultFun] {
   def simple: ApiResultFun[Int] = i => ApiResult("peter", Future.successful(i))
-  def fun(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
+  def fun(a: Int, b: Meh): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
   def fun2(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
   def multi(a: Int)(b: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + b + i))
 }
@@ -68,11 +74,14 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
 
     object Frontend {
       object Transport extends RequestTransport[PickleType, Future] {
-        override def apply(request: Request[PickleType]): Future[PickleType] =
+        override def apply(request: Request[PickleType]): Future[PickleType] = {
+          println("FOO" + request)
           Backend.router(request).toEither match {
-            case Right(result) => result
+            case Right(result) =>
+              result
             case Left(err) => Future.failed(new Exception(err.toString))
           }
+        }
       }
 
       val client = Client[PickleType, Future, ClientException](Transport)

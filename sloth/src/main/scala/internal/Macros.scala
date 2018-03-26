@@ -44,6 +44,13 @@ class Translator[C <: Context](val c: C) {
     symbol = member.asMethod
   } yield (symbol, symbol.typeSignatureIn(tpe))
 
+  private def defaultMethodArgumentInType(tpe: Type, methodName: Name, argumentPosition: Int): Option[TermName] = {
+    val name = s"$methodName$$default$$${argumentPosition + 1}"
+    val sym = tpe.decl(TermName(name))
+    if (sym.isSynthetic && sym.isMethod) Some(sym.name.toTermName)
+    else None
+  }
+
   def supportedMethodsInType(tpe: Type, expectedReturnType: Type): List[(MethodSymbol, Type)] = {
     val methods = definedMethodsInType(tpe)
     val validatedMethods = methods.map { case (sym, tpe) => validateMethod(expectedReturnType, sym, tpe) }
@@ -61,14 +68,15 @@ class Translator[C <: Context](val c: C) {
     findPathName(m.annotations).getOrElse(m.name.toString) ::
     Nil
 
-
+  def paramAsValDefWithDefault(p: Symbol, defaultValue: Option[Tree]): ValDef = q"val ${p.name.toTermName}: ${p.typeSignature} = ${defaultValue.getOrElse(EmptyTree)}"
   def paramAsValDef(p: Symbol): ValDef = q"val ${p.name.toTermName}: ${p.typeSignature}"
   def paramsAsValDefs(m: Type): List[List[ValDef]] = m.paramLists.map(_.map(paramAsValDef))
 
   def paramsObjectName(path: List[String]) = "_sloth_" + path.mkString("_")
   case class ParamsObject(tree: Tree, tpe: Tree)
-  def paramsAsObject(tpe: Type, path: List[String]): ParamsObject = {
+  def paramsAsObject(traitTpe: Type, tpe: Type, sym: MethodSymbol, path: List[String], defaultAccessorName: TermName): ParamsObject = {
     val params = tpe.paramLists.flatten
+    val paramsAsArgs = params.zipWithIndex.map { case (p, idx) => paramAsValDefWithDefault(p, defaultMethodArgumentInType(traitTpe, sym.name, idx).map(s => q"$defaultAccessorName.$s")) }
     val name = paramsObjectName(path)
     val typeName = TypeName(name)
 
@@ -83,7 +91,7 @@ class Translator[C <: Context](val c: C) {
       //   tpe = tq"$typeName"
       // )
       case list => ParamsObject(
-        tree = q"case class $typeName(..${list.map(paramAsValDef)})",
+        tree = q"case class $typeName(..$paramsAsArgs)",
         tpe = tq"$typeName"
       )
     }
@@ -122,7 +130,7 @@ object TraitMacro {
     val (methodImplList, paramsObjects) = validMethods.collect { case (symbol, method) if symbol.isAbstract =>
       val path = t.methodPath(traitTag.tpe, symbol)
       val parameters =  t.paramsAsValDefs(method)
-      val paramsObject = t.paramsAsObject(method, path)
+      val paramsObject = t.paramsAsObject(traitTag.tpe, method, symbol, path, TermName("value"))
       val paramListValue = t.newParamsObject(method, path)
       val innerReturnType = method.finalResultType.typeArgs.head
 
@@ -135,12 +143,15 @@ object TraitMacro {
     val methodImpls = if (methodImplList.isEmpty) List(EmptyTree) else methodImplList
 
     q"""
+      var value: ${traitTag.tpe.finalResultType} = null
       val impl = new ${t.internalPkg}.ClientImpl(${t.macroThis})
 
       ..$paramsObjects
-      new ${traitTag.tpe.finalResultType} {
+
+      value = new ${traitTag.tpe.finalResultType} {
         ..$methodImpls
       }
+      value
     """
   }
 }
@@ -159,7 +170,7 @@ object RouterMacro {
 
     val (methodCases, paramsObjects) = validMethods.map { case (symbol, method) =>
       val path = t.methodPath(traitTag.tpe, symbol)
-      val paramsObject = t.paramsAsObject(method, path)
+      val paramsObject = t.paramsAsObject(traitTag.tpe, method, symbol, path, TermName("value"))
       val argParams: List[List[Tree]] = t.objectToParams(method, TermName("args"))
       val innerReturnType = method.finalResultType.typeArgs.head
 
