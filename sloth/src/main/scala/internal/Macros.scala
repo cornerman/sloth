@@ -40,6 +40,7 @@ class Translator[C <: Context](val c: C) {
     if member.isMethod
     if member.isPublic
     if !member.isConstructor
+    if !member.isSynthetic
     symbol = member.asMethod
   } yield (symbol, symbol.typeSignatureIn(tpe))
 

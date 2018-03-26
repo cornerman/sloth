@@ -25,7 +25,7 @@ object EmptyApi extends EmptyApi
 //shared
 trait Api[Result[_]] {
   def simple: Result[Int]
-  def fun(a: Int): Result[Int]
+  def fun(a: Int, b: String = "drei"): Result[Int]
   def fun2(a: Int, b: String): Result[Int]
   def multi(a: Int)(b: Int): Result[Int]
 }
@@ -33,7 +33,7 @@ trait Api[Result[_]] {
 //server
 object ApiImplFuture extends Api[Future] {
   def simple: Future[Int] = Future.successful(1)
-  def fun(a: Int): Future[Int] = Future.successful(a)
+  def fun(a: Int, b: String): Future[Int] = Future.successful(a)
   def fun2(a: Int, b: String): Future[Int] = Future.successful(a)
   def multi(a: Int)(b: Int): Future[Int] = Future.successful(a)
 }
@@ -41,7 +41,7 @@ object ApiImplFuture extends Api[Future] {
 case class ApiResult[T](event: String, result: Future[T])
 object ApiImplResponse extends Api[ApiResult] {
   def simple: ApiResult[Int] = ApiResult("peter", Future.successful(1))
-  def fun(a: Int): ApiResult[Int] = ApiResult("hans", Future.successful(a))
+  def fun(a: Int, b: String): ApiResult[Int] = ApiResult("hans", Future.successful(a))
   def fun2(a: Int, b: String): ApiResult[Int] = ApiResult("hans", Future.successful(a))
   def multi(a: Int)(b: Int): ApiResult[Int] = ApiResult("hans", Future.successful(a + b))
 }
@@ -50,7 +50,7 @@ object TypeHelper { type ApiResultFun[T] = Int => ApiResult[T] }
 import TypeHelper._
 object ApiImplFunResponse extends Api[ApiResultFun] {
   def simple: ApiResultFun[Int] = i => ApiResult("peter", Future.successful(i))
-  def fun(a: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
+  def fun(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
   def fun2(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
   def multi(a: Int)(b: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + b + i))
 }
