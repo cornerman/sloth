@@ -176,16 +176,12 @@ object RouterMacro {
 
       ..$paramsObjects
 
-      val current: ${t.slothPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] = ${t.macroThis}
-      new ${t.slothPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] {
-        override def apply(request: ${t.slothPkg}.Request[${pickleTypeTag.tpe}]) = current(request) match {
-          case ${t.slothPkg}.RouterResult.Failure(_, ${t.slothPkg}.ServerFailure.PathNotFound(_)) => request.path match {
-            case ..$methodCases
-            case other => ${t.slothPkg}.RouterResult.Failure(None, ${t.slothPkg}.ServerFailure.PathNotFound(other))
-          }
-          case other => other
+      Router.orElse(${t.macroThis}, new ${t.slothPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}] {
+        override def apply(request: ${t.slothPkg}.Request[${pickleTypeTag.tpe}]) = request.path match {
+          case ..$methodCases
+          case other => ${t.slothPkg}.RouterResult.Failure(None, ${t.slothPkg}.ServerFailure.PathNotFound(other))
         }
-      }
+      })
 
     """
   }

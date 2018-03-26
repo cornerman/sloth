@@ -18,6 +18,13 @@ object Router {
   def apply[PickleType, Result[_]] = new Router[PickleType, Result] {
     def apply(request: Request[PickleType]): RouterResult[PickleType, Result] = RouterResult.Failure(None, ServerFailure.PathNotFound(request.path))
   }
+
+  def orElse[PickleType, Result[_]](a: Router[PickleType, Result], b: Router[PickleType, Result]): Router[PickleType, Result] = new Router[PickleType, Result] {
+    def apply(request: Request[PickleType]): RouterResult[PickleType, Result] = a(request) match {
+      case RouterResult.Failure(_, ServerFailure.PathNotFound(_)) => b(request)
+      case result => result
+    }
+  }
 }
 
 sealed trait RouterResult[PickleType, +Result[_]] {
