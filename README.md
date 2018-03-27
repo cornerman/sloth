@@ -106,7 +106,8 @@ object ApiImpl extends Api[ServerResult] {
     }
 }
 
-val router = Router[ByteBuffer, ServerResult].route[Api[ServerResult]](ApiImpl)
+val router = Router[ByteBuffer, ServerResult]
+    .route[Api[ServerResult]](ApiImpl)
 ```
 
 In your client, you can use any `cats.MonadError` that can capture a `ClientFailure` (see `ClientFailureConvert` for using your own failure type):
@@ -187,16 +188,14 @@ For each declared method in this trait (in this case `fun`):
 
 ### Server
 
-When calling `router.route[Api](impl)`, a macro generates a function that maps a method path and a pickled case class to a pickled result:
+When calling `router.route[Api](impl)`, a macro generates a function that maps a method path and a pickled case class to a pickled result. This basically boils down to:
 
 ```scala
-path match {
-    case "Api" :: "fun" =>
-        // deserialize payload
-        // call Api implementation impl with arguments
-        // return serialized response
-    case _ => // PathNotFound failure
-}
+HashMap("Api" -> HashMap("fun" -> { payload =>
+    // deserialize payload
+    // call Api implementation impl with arguments
+    // return serialized response
+}))
 ```
 
 ### Client

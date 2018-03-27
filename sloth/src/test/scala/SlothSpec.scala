@@ -60,8 +60,8 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
   "run simple" in {
     object Backend {
       val router = Router[PickleType, Future]
-        .route[Api[Future]](ApiImplFuture)
         .route(EmptyApi)
+        .route[Api[Future]](ApiImplFuture)
     }
 
     object Frontend {

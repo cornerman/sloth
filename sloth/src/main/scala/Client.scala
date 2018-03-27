@@ -34,5 +34,5 @@ object RequestTransport {
 }
 
 class LogHandler[Result[_]] {
-  def logRequest(path: List[String], argumentObject: Product, result: Result[_]): Unit = ()
+  def logRequest(path: RequestPath, argumentObject: Product, result: Result[_]): Unit = ()
 }

@@ -5,26 +5,23 @@ import sloth.internal.RouterMacro
 import cats.Functor
 import cats.syntax.functor._
 
-trait Router[PickleType, +Result[_]] { router =>
-  def apply(request: Request[PickleType]): RouterResult[PickleType, Result]
+class Router[PickleType, Result[_]](apiMap: Router.Map[PickleType, Result]) {
+  def apply(request: Request[PickleType]): RouterResult[PickleType, Result] = {
+    val function = apiMap.get(request.path.apiName).flatMap(_.get(request.path.methodName))
+    function.fold[RouterResult[PickleType, Result]](RouterResult.Failure(None, ServerFailure.PathNotFound(request.path))) { f =>
+      f(request.payload)
+    }
+  }
 
   def route[T](value: T)(implicit functor: Functor[Result]): Router[PickleType, Result] = macro RouterMacro.impl[T, PickleType, Result]
 
-  final def map[R[_]](f: RouterResult[PickleType, Result] => RouterResult[PickleType, R]): Router[PickleType, R] = new Router[PickleType, R] {
-    def apply(request: Request[PickleType]): RouterResult[PickleType, R] = f(router(request))
-  }
+  def orElse(name: String, value: Router.MapValue[PickleType, Result]): Router[PickleType, Result] = new Router(apiMap + (name -> value))
 }
 object Router {
-  def apply[PickleType, Result[_]] = new Router[PickleType, Result] {
-    def apply(request: Request[PickleType]): RouterResult[PickleType, Result] = RouterResult.Failure(None, ServerFailure.PathNotFound(request.path))
-  }
+  type MapValue[PickleType, Result[_]] = collection.Map[String, PickleType => RouterResult[PickleType, Result]]
+  type Map[PickleType, Result[_]] = collection.Map[String, MapValue[PickleType, Result]]
 
-  def orElse[PickleType, Result[_]](a: Router[PickleType, Result], b: Router[PickleType, Result]): Router[PickleType, Result] = new Router[PickleType, Result] {
-    def apply(request: Request[PickleType]): RouterResult[PickleType, Result] = a(request) match {
-      case RouterResult.Failure(_, ServerFailure.PathNotFound(_)) => b(request)
-      case result => result
-    }
-  }
+  def apply[PickleType, Result[_]]: Router[PickleType, Result] = new Router[PickleType, Result](collection.mutable.HashMap.empty)
 }
 
 sealed trait RouterResult[PickleType, +Result[_]] {
