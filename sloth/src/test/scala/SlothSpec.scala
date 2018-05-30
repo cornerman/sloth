@@ -5,7 +5,6 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import sloth._
 import cats.implicits._
-import cats.derived._, auto.functor._
 
 import chameleon.ext.boopickle._
 import boopickle.Default._
@@ -56,8 +55,7 @@ object ApiImplFunResponse extends Api[ApiResultFun] {
 }
 
 class SlothSpec extends AsyncFreeSpec with MustMatchers {
-  implicit val apiResultFunctor = semi.functor[ApiResult]
-  implicit val apiResultFunFunctor = semi.functor[ApiResultFun]
+  import cats.derived.auto.functor._
 
   "run simple" in {
     object Backend {
