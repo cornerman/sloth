@@ -5,7 +5,7 @@ import sloth.internal.RouterMacro
 import cats.Functor
 import cats.syntax.functor._
 
-class Router[PickleType, Result[_]](apiMap: Router.Map[PickleType, Result]) {
+class Router[PickleType, Result[_]](val apiMap: Router.Map[PickleType, Result]) {
   def apply(request: Request[PickleType]): RouterResult[PickleType, Result] = {
     val function = apiMap.get(request.path.apiName).flatMap(_.get(request.path.methodName))
     function.fold[RouterResult[PickleType, Result]](RouterResult.Failure(None, ServerFailure.PathNotFound(request.path))) { f =>
@@ -15,7 +15,7 @@ class Router[PickleType, Result[_]](apiMap: Router.Map[PickleType, Result]) {
 
   def route[T](value: T)(implicit functor: Functor[Result]): Router[PickleType, Result] = macro RouterMacro.impl[T, PickleType, Result]
 
-  def orElse(name: String, value: Router.MapValue[PickleType, Result]): Router[PickleType, Result] = new Router(apiMap + (name -> value))
+  def orElse(name: String, value: Router.MapValue[PickleType, Result]): Router[PickleType, Result] = macro RouterMacro.orElseImpl[PickleType, Result] //new Router(apiMap + (route.name -> route.value))
 }
 object Router {
   type MapValue[PickleType, Result[_]] = collection.Map[String, PickleType => RouterResult[PickleType, Result]]

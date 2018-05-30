@@ -10,7 +10,7 @@ class Translator[C <: Context](val c: C) {
   val slothPkg = q"_root_.sloth"
   val internalPkg = q"_root_.sloth.internal"
 
-  private def abort(msg: String) = c.abort(c.enclosingPosition, msg)
+  def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
   private def valid(check: => Boolean, errorMsg: => String): Either[String, Unit] = Either.cond(check, (), errorMsg)
   private def validateMethod(expectedReturnType: Type, symbol: MethodSymbol, methodType: Type): Either[String, (MethodSymbol, Type)] = for {
@@ -109,7 +109,7 @@ class Translator[C <: Context](val c: C) {
 object Translator {
   def apply[T](c: Context)(f: Translator[c.type] => c.Tree): c.Expr[T] = {
     val tree = f(new Translator(c))
-    // println("XXX: " + tree)
+    println("XXX: " + tree)
     c.Expr(tree)
   }
 }
@@ -183,6 +183,36 @@ object RouterMacro {
 
       ${c.prefix}.orElse($traitPath, scala.collection.mutable.HashMap(..$methodTuples))
 
+    """
+  }
+
+  def orElseImpl[PickleType, Result[_]]
+    (c: Context)
+    (name: c.Expr[String], value: c.Expr[sloth.Router.MapValue[PickleType, Result]])
+    (implicit pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[sloth.Router[PickleType, Result]] = Translator(c) { t =>
+    import c.universe._
+
+    name.tree match {
+      case Literal(Constant(name: String)) =>
+        val usedNames = collection.mutable.HashSet.empty[String]
+        val traverser = new Traverser {
+          override def traverse(tree: c.universe.Tree): Unit = tree match {
+            case q"sloth.Route.apply[$pt, $rt]($nameTree, $_)" => nameTree match {
+              case Literal(Constant(name: String)) => usedNames += name
+              case _ => ()
+            }
+            case _ => super.traverse(tree)
+          }
+        }
+        traverser.traverse(c.prefix.tree)
+        if (usedNames(name)) {
+          t.abort(s"Multiple APIs registered with the same name. The name $name is already used (${usedNames.mkString(",")})")
+        } else c.prefix
+      case _ => c.prefix
+    }
+
+    q"""
+      new ${t.slothPkg}.Router[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}](${c.prefix}.apiMap + (($name, $value)))
     """
   }
 }
