@@ -2,7 +2,6 @@ package sloth.internal
 
 import scala.reflect.macros.blackbox.Context
 import cats.syntax.either._
-import sloth.RequestPath
 
 class Translator[C <: Context](val c: C) {
   import c.universe._
@@ -56,8 +55,6 @@ class Translator[C <: Context](val c: C) {
     }
   }
 
-  def pathTree(path: RequestPath) = q"$slothPkg.RequestPath(${path.apiName}, ${path.methodName})"
-
   //TODO what about fqn for trait to not have overlaps?
   def traitPath(tpe: Type): String =
     findPathName(tpe.typeSymbol.annotations).getOrElse(tpe.typeSymbol.name.toString)
@@ -68,9 +65,9 @@ class Translator[C <: Context](val c: C) {
   def paramAsValDef(p: Symbol): ValDef = q"val ${p.name.toTermName}: ${p.typeSignature}"
   def paramsAsValDefs(m: Type): List[List[ValDef]] = m.paramLists.map(_.map(paramAsValDef))
 
-  def paramsObjectName(path: RequestPath) = s"_sloth_${path.apiName}_${path.methodName}"
+  def paramsObjectName(path: List[String]) = s"_sloth_${path.mkString("_")}"
   case class ParamsObject(tree: Tree, tpe: Tree)
-  def paramsAsObject(tpe: Type, path: RequestPath): ParamsObject = {
+  def paramsAsObject(tpe: Type, path: List[String]): ParamsObject = {
     val params = tpe.paramLists.flatten
     val name = paramsObjectName(path)
     val typeName = TypeName(name)
@@ -94,7 +91,7 @@ class Translator[C <: Context](val c: C) {
   def objectToParams(tpe: Type, obj: TermName): List[List[Tree]] =
     tpe.paramLists.map(_.map(p => q"$obj.${p.name.toTermName}"))
 
-  def newParamsObject(tpe: Type, path: RequestPath): Tree = {
+  def newParamsObject(tpe: Type, path: List[String]): Tree = {
     val params = tpe.paramLists.flatten
     val name = paramsObjectName(path)
     val typeName = TypeName(name)
@@ -125,7 +122,7 @@ object TraitMacro {
     val traitPath = t.traitPath(traitTag.tpe)
     val (methodImplList, paramsObjects) = validMethods.collect { case (symbol, method) if symbol.isAbstract =>
       val methodPathPart = t.methodPathPart(symbol)
-      val path = RequestPath(traitPath, methodPathPart)
+      val path = traitPath :: methodPathPart :: Nil
       val parameters =  t.paramsAsValDefs(method)
       val paramsObject = t.paramsAsObject(method, path)
       val paramListValue = t.newParamsObject(method, path)
@@ -133,7 +130,7 @@ object TraitMacro {
 
       (q"""
         override def ${symbol.name}(...$parameters): ${method.finalResultType} = {
-          impl.execute[${paramsObject.tpe}, $innerReturnType](${t.pathTree(path)}, $paramListValue)
+          impl.execute[${paramsObject.tpe}, $innerReturnType]($path, $paramListValue)
         }
       """, paramsObject.tree)
     }.unzip
@@ -163,12 +160,12 @@ object RouterMacro {
     val traitPath = t.traitPath(traitTag.tpe)
     val (methodTuples, paramsObjects) = validMethods.map { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
-      val path = RequestPath(traitPath, methodPathPart)
+      val path = traitPath :: methodPathPart :: Nil
       val paramsObject = t.paramsAsObject(method, path)
       val argParams: List[List[Tree]] = t.objectToParams(method, TermName("args"))
       val innerReturnType = method.finalResultType.typeArgs.head
       val payloadFunction =
-        q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsObject.tpe}, $innerReturnType](${t.pathTree(path)}, payload) { args =>
+        q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsObject.tpe}, $innerReturnType]($path, payload) { args =>
           value.${symbol.name.toTermName}(...$argParams)
         }"""
 

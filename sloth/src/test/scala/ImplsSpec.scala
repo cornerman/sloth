@@ -24,7 +24,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
       val pickledInput = Serializer[Argument, ByteBuffer].serialize(argument)
       val resultValue = "Argument(1)"
       val pickledResult = Serializer[String, ByteBuffer].serialize(resultValue)
-      val result = impl.execute[Argument, String](RequestPath("api", "f"), pickledInput)(_.toString)
+      val result = impl.execute[Argument, String]("api" :: "f" :: Nil, pickledInput)(_.toString)
 
       result mustEqual Success[ByteBuffer, Id](argument, Value(resultValue, pickledResult))
     }
@@ -35,7 +35,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
       val argument = Argument(1)
       val pickledInput = Serializer[Argument, ByteBuffer].serialize(argument)
       val exception = new Exception("meh")
-      val result = impl.execute[Argument, String](RequestPath("api", "f"), pickledInput)(_ => throw exception)
+      val result = impl.execute[Argument, String]("api" :: "f" :: Nil, pickledInput)(_ => throw exception)
 
       result mustEqual Failure(Some(argument), ServerFailure.HandlerError(exception))
     }
@@ -52,7 +52,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
       val impl = new ClientImpl(client)
 
       val argument = Argument(1)
-      val result = impl.execute[Argument, Argument](RequestPath("api", "f"), argument)
+      val result = impl.execute[Argument, Argument]("api" :: "f" :: Nil, argument)
 
       result mustEqual Right(argument)
     }
@@ -64,7 +64,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
       val impl = new ClientImpl(client)
 
       val argument = Argument(1)
-      val result = impl.execute[Argument, Double](RequestPath("api", "f"), argument)
+      val result = impl.execute[Argument, Double]("api" :: "f" :: Nil, argument)
 
       result mustEqual Left(ClientFailure.TransportError(exception))
     }
