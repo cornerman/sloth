@@ -212,6 +212,23 @@ new Api {
 }
 ```
 
+## Experimental: Checksum for Apis
+
+In order to check the compatability of the client and server Api trait, you can calculate a checksum of your Api:
+
+```scala
+import sloth.ChecksumCalculator._
+
+trait Api {
+    def fun(s: String): Int
+}
+
+val checksum:Int = checksumOf[Api]
+
+```
+
+The checksum of an Api trait is calculated from its *Name* and its *methods* (including names and types of parameters and result type).
+
 ## Limitations
 
 * Type parameters on methods in the API trait are not supported.

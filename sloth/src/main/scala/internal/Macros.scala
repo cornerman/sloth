@@ -2,6 +2,8 @@ package sloth.internal
 
 import scala.reflect.macros.blackbox.Context
 import cats.syntax.either._
+import collection.breakOut
+
 
 class Translator[C <: Context](val c: C) {
   import c.universe._
@@ -9,7 +11,7 @@ class Translator[C <: Context](val c: C) {
   val slothPkg = q"_root_.sloth"
   val internalPkg = q"_root_.sloth.internal"
 
-  private def abort(msg: String) = c.abort(c.enclosingPosition, msg)
+  def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
   private def valid(check: => Boolean, errorMsg: => String): Either[String, Unit] = Either.cond(check, (), errorMsg)
   private def validateMethod(expectedReturnType: Type, symbol: MethodSymbol, methodType: Type): Either[String, (MethodSymbol, Type)] = for {
@@ -34,7 +36,7 @@ class Translator[C <: Context](val c: C) {
     case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.PathName] => name.toString
   }
 
-  private def definedMethodsInType(tpe: Type): List[(MethodSymbol, Type)] = for {
+  def definedMethodsInType(tpe: Type): List[(MethodSymbol, Type)] = for {
     member <- tpe.decls.toList
     if member.isMethod
     if member.isPublic
@@ -182,4 +184,64 @@ object RouterMacro {
 
     """
   }
+}
+object ChecksumMacro {
+  def impl[Trait]
+    (c: Context)
+    (implicit traitTag: c.WeakTypeTag[Trait]): c.Expr[Int] = Translator(c) { t =>
+    import c.universe._
+
+    case class ParamSignature(name: String, tpe: Type) {
+      override def hashCode: Int = (name, typeChecksum(tpe)).hashCode
+    }
+    case class MethodSignature(name: String, params: List[ParamSignature], result: Type) {
+      override def hashCode: Int = (name, params, typeChecksum(result)).hashCode
+    }
+    case class ApiSignature(name: String, methods: Set[MethodSignature]) {
+      override def hashCode: Int = (name, methods).hashCode
+    }
+
+    def paramsOfType(tpe: Type): List[ParamSignature] = tpe match { case method: MethodType => method.paramLists.flatMap(_.map { p => ParamSignature(p.name.toString, p.typeSignatureIn(traitTag.tpe)) })
+      case _ => Nil
+    }
+
+    //TODO: expose as separete library
+    def typeChecksum(tpe: Type): Int = {
+      val classSymbol: ClassSymbol = tpe.typeSymbol match {
+        case sym if sym.isClass => sym.asClass
+        case sym => t.abort("Type '${traitTag.tpe}' is not a class or trait and cannot be checksummed (please file a bug with an example if you think this is wrong)")
+      }
+
+      val caseAccessors = classSymbol.typeSignature.members.collect {
+        case m if m.isMethod && m.asMethod.isCaseAccessor => m.asMethod
+      }
+      val directSubClasses = classSymbol.knownDirectSubclasses
+
+      (
+        tpe.typeSymbol.fullName,
+        caseAccessors.map(a => (a.name.toString, typeChecksum(a.typeSignature.finalResultType))),
+        directSubClasses.map(c => typeChecksum(c.typeSignature)).toSet
+        ).hashCode
+    }
+
+    val definedMethods = t.definedMethodsInType(traitTag.tpe)
+
+    val dataMethods:Set[MethodSignature] = definedMethods.map { case (symbol, method) =>
+      val name = t.methodPathPart(symbol)
+      val resultType = method.finalResultType
+      val params = paramsOfType(method)
+
+      MethodSignature(name, params, resultType)
+    }(breakOut)
+
+    val name = t.traitPathPart(traitTag.tpe)
+    val apiSignature = ApiSignature(name, dataMethods)
+
+    val checksum = apiSignature.hashCode
+
+    q"""
+      $checksum
+     """
+  }
+
 }
