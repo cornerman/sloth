@@ -4,25 +4,34 @@ import scala.reflect.macros.blackbox.Context
 import cats.syntax.either._
 import collection.breakOut
 
+object Validator {
+  //TODO cats: kleisli? validate?
+  type Validation = Either[String, Unit]
+
+  def Valid: Validation = Right(())
+  def Invalid(msg: String): Validation = Left(msg)
+
+  def validate(check: => Boolean, errorMsg: => String): Validation = Either.cond(check, (), errorMsg)
+}
 
 class Translator[C <: Context](val c: C) {
   import c.universe._
+  import Validator._
 
   val slothPkg = q"_root_.sloth"
   val internalPkg = q"_root_.sloth.internal"
 
   def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
-  private def valid(check: => Boolean, errorMsg: => String): Either[String, Unit] = Either.cond(check, (), errorMsg)
   private def validateMethod(expectedReturnType: Type, symbol: MethodSymbol, methodType: Type): Either[String, (MethodSymbol, Type)] = for {
     _ <- methodType match {
-      case _: MethodType | _: NullaryMethodType => Right(())
-      case _: PolyType => Left(s"method ${symbol.name} has type parameters")
-      case _ => Left(s"method ${symbol.name} has unsupported type")
+      case _: MethodType | _: NullaryMethodType => Valid
+      case _: PolyType => Invalid(s"method ${symbol.name} has type parameters")
+      case _ => Invalid(s"method ${symbol.name} has unsupported type")
     }
     methodResult = methodType.finalResultType.typeConstructor
     returnResult = expectedReturnType.finalResultType.typeConstructor
-    _ <- valid(methodResult <:< returnResult, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
+    _ <- validate(methodResult <:< returnResult, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
   } yield (symbol, methodType)
 
   //TODO rename overloaded methods to fun1, fun2, fun3 or append TypeSignature instead of number?
@@ -58,7 +67,7 @@ class Translator[C <: Context](val c: C) {
   }
 
   //TODO what about fqn for trait to not have overlaps?
-  def traitPath(tpe: Type): String =
+  def traitPathPart(tpe: Type): String =
     findPathName(tpe.typeSymbol.annotations).getOrElse(tpe.typeSymbol.name.toString)
 
   def methodPathPart(m: MethodSymbol): String =
@@ -121,10 +130,10 @@ object TraitMacro {
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val traitPath = t.traitPath(traitTag.tpe)
+    val traitPathPart = t.traitPathPart(traitTag.tpe)
     val (methodImplList, paramsObjects) = validMethods.collect { case (symbol, method) if symbol.isAbstract =>
       val methodPathPart = t.methodPathPart(symbol)
-      val path = traitPath :: methodPathPart :: Nil
+      val path = traitPathPart :: methodPathPart :: Nil
       val parameters =  t.paramsAsValDefs(method)
       val paramsObject = t.paramsAsObject(method, path)
       val paramListValue = t.newParamsObject(method, path)
@@ -159,10 +168,10 @@ object RouterMacro {
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val traitPath = t.traitPath(traitTag.tpe)
+    val traitPathPart = t.traitPathPart(traitTag.tpe)
     val (methodTuples, paramsObjects) = validMethods.map { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
-      val path = traitPath :: methodPathPart :: Nil
+      val path = traitPathPart :: methodPathPart :: Nil
       val paramsObject = t.paramsAsObject(method, path)
       val argParams: List[List[Tree]] = t.objectToParams(method, TermName("args"))
       val innerReturnType = method.finalResultType.typeArgs.head
@@ -180,7 +189,7 @@ object RouterMacro {
 
       ..$paramsObjects
 
-      ${c.prefix}.orElse($traitPath, scala.collection.mutable.HashMap(..$methodTuples))
+      ${c.prefix}.orElse($traitPathPart, scala.collection.mutable.HashMap(..$methodTuples))
 
     """
   }
