@@ -201,16 +201,17 @@ object ChecksumMacro {
     import c.universe._
 
     case class ParamSignature(name: String, tpe: Type) {
-      override def hashCode: Int = (name, typeChecksum(tpe)).hashCode
+      def checksum: Int = (name, typeChecksum(tpe)).hashCode
     }
     case class MethodSignature(name: String, params: List[ParamSignature], result: Type) {
-      override def hashCode: Int = (name, params, typeChecksum(result)).hashCode
+      def checksum: Int = (name, params.map(_.checksum), typeChecksum(result)).hashCode
     }
     case class ApiSignature(name: String, methods: Set[MethodSignature]) {
-      override def hashCode: Int = (name, methods).hashCode
+      def checksum: Int = (name, methods.map(_.checksum)).hashCode
     }
 
-    def paramsOfType(tpe: Type): List[ParamSignature] = tpe match { case method: MethodType => method.paramLists.flatMap(_.map { p => ParamSignature(p.name.toString, p.typeSignatureIn(traitTag.tpe)) })
+    def paramsOfType(tpe: Type): List[ParamSignature] = tpe match {
+      case method: MethodType => method.paramLists.flatMap(_.map { p => ParamSignature(p.name.toString, p.typeSignatureIn(traitTag.tpe)) })
       case _ => Nil
     }
 
@@ -218,7 +219,7 @@ object ChecksumMacro {
     def typeChecksum(tpe: Type): Int = {
       val classSymbol: ClassSymbol = tpe.typeSymbol match {
         case sym if sym.isClass => sym.asClass
-        case sym => t.abort("Type '${traitTag.tpe}' is not a class or trait and cannot be checksummed (please file a bug with an example if you think this is wrong)")
+        case sym => t.abort(s"Type '$tpe' is not a class or trait and cannot be checksummed (please file a bug with an example if you think this is wrong)")
       }
 
       val caseAccessors = classSymbol.typeSignature.members.collect {
@@ -246,7 +247,7 @@ object ChecksumMacro {
     val name = t.traitPathPart(traitTag.tpe)
     val apiSignature = ApiSignature(name, dataMethods)
 
-    val checksum = apiSignature.hashCode
+    val checksum = apiSignature.checksum
 
     q"""
       $checksum
