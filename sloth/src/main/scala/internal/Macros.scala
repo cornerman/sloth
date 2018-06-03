@@ -215,22 +215,31 @@ object ChecksumMacro {
       case _ => Nil
     }
 
+    def unifyClassWithTrait(ttrait: Type, classSym: ClassSymbol): Type = {
+      val tclass = classSym.toType
+      val traitSeenFromClass = tclass.baseType(ttrait.typeSymbol)
+      tclass.substituteTypes(traitSeenFromClass.typeArgs.map(_.typeSymbol), ttrait.typeArgs)
+    }
+
+    def ensureClassSymbol(sym: Symbol): ClassSymbol = sym match {
+      case sym if sym.isClass => sym.asClass
+      case sym => t.abort(s"Type '$sym' is not a class or trait and cannot be checksummed (please file a bug with an example if you think this is wrong)")
+    }
+
     //TODO: expose as separete library
     def typeChecksum(tpe: Type): Int = {
-      val classSymbol: ClassSymbol = tpe.typeSymbol match {
-        case sym if sym.isClass => sym.asClass
-        case sym => t.abort(s"Type '$tpe' is not a class or trait and cannot be checksummed (please file a bug with an example if you think this is wrong)")
-      }
+      val classSymbol = ensureClassSymbol(tpe.typeSymbol)
 
-      val caseAccessors = classSymbol.typeSignature.members.collect {
+      val directSubClasses = classSymbol.knownDirectSubclasses.map(sym => unifyClassWithTrait(tpe, ensureClassSymbol(sym)))
+
+      val caseAccessors = tpe.members.collect {
         case m if m.isMethod && m.asMethod.isCaseAccessor => m.asMethod
       }
-      val directSubClasses = classSymbol.knownDirectSubclasses
 
       (
         tpe.typeSymbol.fullName,
-        caseAccessors.map(a => (a.name.toString, typeChecksum(a.typeSignature.finalResultType))),
-        directSubClasses.map(c => typeChecksum(c.typeSignature)).toSet
+        caseAccessors.map(a => (a.name.toString, typeChecksum(a.typeSignatureIn(tpe).finalResultType))),
+        directSubClasses.map(typeChecksum).toSet
         ).hashCode
     }
 

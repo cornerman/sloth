@@ -147,4 +147,41 @@ class ChecksumSpec extends AsyncFreeSpec with MustMatchers {
 
     checksumOf[Api] must not equal checksumOf[Other.Api]
   }
+
+  "different generic in param" in {
+    case class Film[T](meter: T)
+    trait Api {
+      def kleben(mit: Film[Int]): Int
+    }
+    object Other {
+    trait Api {
+      def kleben(mit: Film[Double]): Int
+    }
+    }
+
+    checksumOf[Api] must not equal checksumOf[Other.Api]
+  }
+
+  "different generic in type" in {
+    case class Film[T](meter: T)
+    trait Api {
+      def kleben(mit: Film[Int]): Int
+    }
+    object Other {
+    trait Api {
+      def kleben(mit: Film[Double]): Int
+    }
+    }
+
+    checksumOf[Api] must not equal checksumOf[Other.Api]
+  }
+
+  "generic api" in {
+    trait Api[Result[_]] {
+      def kleben(mit: Int): Result[Int]
+    }
+
+    checksumOf[Api[Option]] mustEqual checksumOf[Api[Option]]
+    checksumOf[Api[Option]] must not equal checksumOf[Api[Function0]]
+  }
 }
