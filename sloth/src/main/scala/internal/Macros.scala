@@ -29,8 +29,8 @@ class Translator[C <: Context](val c: C) {
       case _: PolyType => Invalid(s"method ${symbol.name} has type parameters")
       case _ => Invalid(s"method ${symbol.name} has unsupported type")
     }
-    methodResult = methodType.finalResultType.typeConstructor
-    returnResult = expectedReturnType.finalResultType.typeConstructor
+    methodResult = methodType.finalResultType
+    returnResult = methodResult.baseType(expectedReturnType.typeSymbol)
     _ <- validate(methodResult <:< returnResult, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
   } yield (symbol, methodType)
 
