@@ -29,9 +29,9 @@ class Translator[C <: Context](val c: C) {
       case _: PolyType => Invalid(s"method ${symbol.name} has type parameters")
       case _ => Invalid(s"method ${symbol.name} has unsupported type")
     }
-    methodResult = methodType.finalResultType
-    returnResult = methodResult.baseType(expectedReturnType.typeSymbol)
-    _ <- validate(methodResult.typeConstructor <:< returnResult.typeConstructor, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
+    // methodResult = methodType.finalResultType
+    // returnResult = methodResult.baseType(expectedReturnType.typeSymbol)
+    // _ <- validate(methodResult.typeConstructor <:< returnResult.typeConstructor, s"method ${symbol.name} has invalid return type, required: $methodResult <: $returnResult")
   } yield (symbol, methodType)
 
   //TODO rename overloaded methods to fun1, fun2, fun3 or append TypeSignature instead of number?
