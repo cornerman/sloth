@@ -149,8 +149,8 @@ router(request).toEither match {
 
 For logging, you can define a `LogHandler`, which can log each request including the deserialized request and response. Define it when creating the `Client`:
 ```scala
-object MyLogHandler extends LogHandler[ClientResult] {
-  def logRequest(path: List[String], argumentObject: Product, result: ClientResult[_]): Unit = ???
+object MyLogHandler extends LogHandler {
+  def logRequest[Result[_], ErrorType](path: List[String], argumentObject: Product, result: Result[_])(implicit monad: MonadError[Result, _ >: ErrorType]): Unit = ()
 }
 
 val client = Client[PickleType, ClientResult, ClientFailure](Transport, MyLogHandler)
