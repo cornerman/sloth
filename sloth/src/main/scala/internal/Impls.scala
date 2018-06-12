@@ -16,9 +16,9 @@ class RouterImpl[PickleType, Result[_] : Functor] {
             RouterResult.Success(arguments, result.map { value =>
               RouterResult.Value(value, serializer.serialize(value))
             })
-          case Failure(err) => RouterResult.Failure[PickleType](Some(arguments), ServerFailure.HandlerError(err))
+          case Failure(err) => RouterResult.Failure[PickleType, Result](Some(arguments), ServerFailure.HandlerError(err))
         }
-      case Left(err) => RouterResult.Failure[PickleType](None, ServerFailure.DeserializerError(err))
+      case Left(err) => RouterResult.Failure[PickleType, Result](None, ServerFailure.DeserializerError(err))
     }
   }
 }

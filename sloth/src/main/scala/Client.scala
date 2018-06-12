@@ -2,7 +2,7 @@ package sloth
 
 import sloth.internal.TraitMacro
 
-import cats.MonadError
+import cats.{MonadError, ~>}
 
 //TODO: move implicits to wire method
 class Client[PickleType, Result[_], ErrorType](
@@ -23,7 +23,7 @@ object Client {
 trait RequestTransport[PickleType, Result[_]] { transport =>
   def apply(request: Request[PickleType]): Result[PickleType]
 
-  final def map[R[_]](f: Result[PickleType] => R[PickleType]): RequestTransport[PickleType, R] = new RequestTransport[PickleType, R] {
+  final def map[R[_]](f: Result ~> R): RequestTransport[PickleType, R] = new RequestTransport[PickleType, R] {
     def apply(request: Request[PickleType]): R[PickleType] = f(transport(request))
   }
 }

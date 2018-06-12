@@ -5,6 +5,8 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import sloth._
 import cats.implicits._
+import monix.reactive.Observable
+import monix.execution.Scheduler
 
 import chameleon.ext.boopickle._
 import boopickle.Default._
@@ -39,6 +41,7 @@ object ApiImplFuture extends Api[Future] {
   def fun(a: Int, b: String): Future[Int] = Future.successful(a)
   def fun2(a: Int, b: String): Future[Int] = Future.successful(a)
   def multi(a: Int)(b: Int): Future[Int] = Future.successful(a)
+  def stream(a: Int): Observable[Int] = Observable(a)
 }
 //or
 case class ApiResult[T](event: String, result: Future[T])
@@ -58,7 +61,34 @@ object ApiImplFunResponse extends Api[ApiResultFun] {
   def multi(a: Int)(b: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + b + i))
 }
 
+// mixed result type
+trait MixedApi {
+  def fun: Future[Int]
+  def stream: Observable[Int]
+}
+object MixedApiImpl extends MixedApi {
+  def fun: Future[Int] = Future.successful(1)
+  def stream: Observable[Int] = Observable(1, 2)
+}
+
+
+// multi arg result type
+trait MultiTypeArgApi[Single[_], Stream[_]] {
+  def fun: Single[Int]
+  def stream: Stream[Int]
+}
+object MultiTypeArgResult {
+  case class Single[T](future: Future[T])
+  case class Stream[T](observable: Observable[T])
+}
+object MultiTypeArgApiImpl extends MultiTypeArgApi[MultiTypeArgResult.Single, MultiTypeArgResult.Stream] {
+  def fun = MultiTypeArgResult.Single(Future.successful(1))
+  def stream = MultiTypeArgResult.Stream(Observable(1, 2))
+}
+
 class SlothSpec extends AsyncFreeSpec with Matchers {
+  override implicit def executionContext: Scheduler = Scheduler.global // bring in sync with observable executioncontext
+
   import cats.derived.auto.functor._
 
   "run simple" in {
@@ -141,5 +171,78 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
     }
 
     Frontend.api.fun(1).map(_ mustEqual 11)
+  }
+
+  "run mixed result types" in {
+    implicit val futureToObservable: ResultMapping[Future, Observable] = new ResultMapping[Future, Observable] {
+      def apply[T](result: Future[T]): Observable[T] = Observable.fromFuture(result)
+    }
+    implicit val observableToFuture: ResultMapping[Observable, Future] = new ResultMapping[Observable, Future] {
+      def apply[T](result: Observable[T]): Future[T] = result.lastL.runAsync
+    }
+
+    object Backend {
+      val router = Router[PickleType, Observable]
+        .route[MixedApi](MixedApiImpl)
+    }
+
+    object Frontend {
+      object Transport extends RequestTransport[PickleType, Observable] {
+        override def apply(request: Request[PickleType]): Observable[PickleType] =
+          Backend.router(request).toEither match {
+            case Right(result) => result
+            case Left(err) => Observable.raiseError(new Exception(err.toString))
+          }
+      }
+
+      val client = Client[PickleType, Observable, ClientException](Transport)
+      val api = client.wire[MixedApi]
+    }
+
+    for {
+      fun <- Frontend.api.fun
+      stream <- Frontend.api.stream.foldLeftL[List[Int]](Nil)((l,i) => l :+ i).runAsync
+    } yield {
+      fun mustEqual 1
+      stream mustEqual List(1, 2)
+    }
+  }
+
+  "run multi arg result type" in {
+    implicit def singleToObservable: ResultMapping[MultiTypeArgResult.Single, Observable] = new ResultMapping[MultiTypeArgResult.Single, Observable] {
+      def apply[T](result: MultiTypeArgResult.Single[T]): Observable[T] = Observable.fromFuture(result.future)
+    }
+    implicit def streamToObservable: ResultMapping[MultiTypeArgResult.Stream, Observable] = new ResultMapping[MultiTypeArgResult.Stream, Observable] {
+      def apply[T](result: MultiTypeArgResult.Stream[T]): Observable[T] = result.observable
+    }
+    implicit val observableToFuture: ResultMapping[Observable, Future] = new ResultMapping[Observable, Future] {
+      def apply[T](result: Observable[T]): Future[T] = result.lastL.runAsync
+    }
+
+    object Backend {
+      val router = Router[PickleType, Observable]
+        .route[MultiTypeArgApi[MultiTypeArgResult.Single, MultiTypeArgResult.Stream]](MultiTypeArgApiImpl)
+    }
+
+    object Frontend {
+      object Transport extends RequestTransport[PickleType, Observable] {
+        override def apply(request: Request[PickleType]): Observable[PickleType] =
+          Backend.router(request).toEither match {
+            case Right(result) => result
+            case Left(err) => Observable.raiseError(new Exception(err.toString))
+          }
+      }
+
+      val client = Client[PickleType, Observable, ClientException](Transport)
+      val api = client.wire[MultiTypeArgApi[Future, Observable]]
+    }
+
+    for {
+      fun <- Frontend.api.fun
+      stream <- Frontend.api.stream.foldLeftL[List[Int]](Nil)((l,i) => l :+ i).runAsync
+    } yield {
+      fun mustEqual 1
+      stream mustEqual List(1, 2)
+    }
   }
 }

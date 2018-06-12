@@ -56,6 +56,7 @@ lazy val sloth = crossProject.crossType(CrossType.Pure)
       Deps.chameleon.value ::
 
       Deps.kittens.value % Test ::
+      Deps.monix.value % Test ::
       Deps.boopickle.value % Test ::
       Deps.circe.core.value % Test ::
       Deps.circe.generic.value % Test ::

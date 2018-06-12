@@ -19,4 +19,5 @@ object Deps {
     val parser = dep("io.circe" %%% "circe-parser" % version)
     val shapes = dep("io.circe" %%% "circe-shapes" % version)
   }
+  val monix = dep("io.monix" %%% "monix" % "3.0.0-RC1")
 }
