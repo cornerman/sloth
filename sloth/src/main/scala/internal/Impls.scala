@@ -39,7 +39,7 @@ class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Re
       case Failure(t) => monad.raiseError(failureConverter.convert(ClientFailure.TransportError(t)))
     }
 
-    logger.logRequest[Result, ErrorType](path, arguments, result)
+    logger.logRequest[Result](path, arguments, result)
     result
   }
 }

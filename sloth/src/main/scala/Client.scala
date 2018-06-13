@@ -34,5 +34,5 @@ object RequestTransport {
 }
 
 class LogHandler {
-  def logRequest[Result[_], ErrorType](path: List[String], argumentObject: Product, result: Result[_])(implicit monad: MonadError[Result, _ >: ErrorType]): Unit = ()
+  def logRequest[Result[_]](path: List[String], argumentObject: Product, result: Result[_])(implicit monad: MonadError[Result, _]): Unit = ()
 }
