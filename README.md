@@ -86,6 +86,33 @@ api.fun(1).foreach { num =>
 
 ## Additional features
 
+### Multiple routes
+
+It is possible to have multiple APIs routed through the same router:
+```scala
+val router = Router[ByteBuffer, Future]
+    .route[Api](ApiImpl)
+    .route[OtherApi](OtherApiImpl)
+```
+
+### Router result
+
+The router in the server returns a `RouterResult[PickleType, Result[_]]` which either returns a result or fails with a `ServerFailure`. Furthermore, it gives access to the deserialized request:
+```scala
+router(request) match {
+    case RouterResult.Success(arguments, result) => println(s"Success (arguments: $arguments): $result")
+    case RouterResult.Failure(arguments, error) => println(s"Error (arguments: $arguments): $error")
+}
+```
+
+Or you can just convert the result to an `Either[ServerFailure, Result[PickleType]]`:
+```scala
+router(request).toEither match {
+    case Right(result) => println(s"Success: $result")
+    case Left(error) => println(s"Error: $error")
+}
+```
+
 ### Generic return type
 
 Sometimes it can be useful to have a different return type on the server and client, you can do so by making your API generic:
@@ -118,33 +145,6 @@ val client = Client[PickleType, ClientResult, ClientFailure](Transport)
 val api: Api = client.wire[Api[ClientResult]]
 ```
 
-### Multiple routes
-
-It is possible to have multiple APIs routed through the same router:
-```scala
-val router = Router[ByteBuffer, Future]
-    .route[Api](ApiImpl)
-    .route[OtherApi](OtherApiImpl)
-```
-
-### Router result
-
-The router in the server returns a `RouterResult[PickleType, Result[_]]` which either returns a result or fails with a `ServerFailure`. Furthermore, it gives access to the deserialized request:
-```scala
-router(request) match {
-    case RouterResult.Success(arguments, result) => println(s"Success (arguments: $arguments): $result")
-    case RouterResult.Failure(arguments, error) => println(s"Error (arguments: $arguments): $error")
-}
-```
-
-Or you can just convert the result to an `Either[ServerFailure, Result[PickleType]]`:
-```scala
-router(request).toEither match {
-    case Right(result) => println(s"Success: $result")
-    case Left(error) => println(s"Error: $error")
-}
-```
-
 ### Mixing result types
 
 You might want to mix different result types in one Api trait, for example:
@@ -166,7 +166,6 @@ implicit val observableToFuture: ResultMapping[Observable, Future] = new ResultM
 ```
 
 Then you can define your `Router[PickleType, Observable]` and `Client[PickleType, Observable]` as usual.
-
 
 ### Client logging
 
