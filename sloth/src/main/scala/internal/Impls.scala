@@ -41,6 +41,5 @@ class ClientImpl[PickleType, Result[_]](client: Client[PickleType, Result]) {
     }
 
     logger.logRequest(path, arguments, result)
-    result
   }
 }

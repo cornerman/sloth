@@ -35,10 +35,10 @@ object RequestTransport {
 }
 
 trait LogHandler[Result[_]] {
-  def logRequest(path: List[String], argumentObject: Product, result: Result[_]): Unit
+  def logRequest[T](path: List[String], argumentObject: Product, result: Result[T]): Result[T]
 }
 object LogHandler {
   def empty[Result[_]]: LogHandler[Result] = new LogHandler[Result] {
-    def logRequest(path: List[String], argumentObject: Product, result: Result[_]): Unit = ()
+    def logRequest[T](path: List[String], argumentObject: Product, result: Result[T]): Result[T] = result
   }
 }
