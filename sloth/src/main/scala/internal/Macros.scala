@@ -46,6 +46,7 @@ class Translator[C <: Context](val c: C) {
     member <- tpe.decls.toList
     if member.isMethod
     if member.isPublic
+    if member.isAbstract
     if !member.isConstructor
     if !member.isSynthetic
     symbol = member.asMethod
@@ -152,7 +153,7 @@ object TraitMacro {
     val validMethods = t.supportedMethodsInType(traitTag.tpe)
 
     val traitPathPart = t.traitPathPart(traitTag.tpe)
-    val (methodImplList, paramsObjects) = validMethods.collect { case (symbol, method) if symbol.isAbstract =>
+    val (methodImplList, paramsObjects) = validMethods.collect { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
       val path = traitPathPart :: methodPathPart :: Nil
       val parameters =  t.paramsAsValDefs(method)
