@@ -8,17 +8,14 @@ class Client[PickleType, Result[_]](
   private[sloth] val transport: RequestTransport[PickleType, Result],
   private[sloth] val logger: LogHandler[Result]
 )(implicit
-  private[sloth] val monadErrorProvider: MonadErrorProvider[Result]
+  private[sloth] val monad: MonadClientFailure[Result]
 ) {
 
   def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result]
 }
 
 object Client {
-  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result])(implicit monadError: MonadErrorProvider[Result]): Client[PickleType, Result] = new Client(transport, LogHandler.empty[Result])
-  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result])(implicit monadError: MonadErrorProvider[Result]): Client[PickleType, Result] = new Client(transport, logger)
-
-  def apply[PickleType, Result[_], ErrorType](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit monadError: MonadError[Result, _ >: ErrorType], converter: ClientFailureConvert[ErrorType]): Client[PickleType, Result] = new Client(transport, logger)(new MonadErrorProvider.Converted[Result, ErrorType])
+  def apply[PickleType, Result[_], ErrorType](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit monad: MonadError[Result, _ >: ErrorType], converter: ClientFailureConvert[ErrorType]): Client[PickleType, Result] = new Client(transport, logger)(MonadClientFailure[Result, ErrorType])
 }
 
 trait RequestTransport[PickleType, Result[_]] { transport =>

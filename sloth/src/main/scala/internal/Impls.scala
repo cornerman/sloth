@@ -25,7 +25,6 @@ class RouterImpl[PickleType, Result[_] : Functor] {
 
 class ClientImpl[PickleType, Result[_]](client: Client[PickleType, Result]) {
   import client._
-  private implicit val monad: Monad[Result] = client.monadErrorProvider.monad
 
   def execute[T <: Product, R](path: List[String], arguments: T)(implicit deserializer: Deserializer[R, PickleType], serializer: Serializer[T, PickleType]): Result[R] = {
     val serializedArguments = serializer.serialize(arguments)
@@ -34,10 +33,10 @@ class ClientImpl[PickleType, Result[_]](client: Client[PickleType, Result]) {
       case Success(response) => response.flatMap { response =>
         deserializer.deserialize(response) match {
           case Right(value) => monad.pure[R](value)
-          case Left(t) => monadErrorProvider.raiseError(ClientFailure.DeserializerError(t))
+          case Left(t) => monad.raiseError(ClientFailure.DeserializerError(t))
         }
       }
-      case Failure(t) => monadErrorProvider.raiseError(ClientFailure.TransportError(t))
+      case Failure(t) => monad.raiseError(ClientFailure.TransportError(t))
     }
 
     logger.logRequest[R](path, arguments, result)
