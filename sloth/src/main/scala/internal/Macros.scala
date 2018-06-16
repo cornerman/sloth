@@ -126,7 +126,7 @@ class Translator[C <: Context](val c: C) {
     c.inferImplicitValue(mapping) match {
       case EmptyTree => abort(s"""Cannot find implicit mapping '$mapping' for occurring result types. Define it with:
         |  implicit val mapping: $mapping = new $mapping {
-          |    def apply[T](result = $from[T]): $to[T] = ???
+          |    def apply[T](result: $from[T]): $to[T] = ???
         |  }
         """.stripMargin)
       case tree => tree
