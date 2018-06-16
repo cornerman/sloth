@@ -2,7 +2,7 @@ package sloth.internal
 
 import sloth._
 import chameleon._
-import cats.{Applicative, FlatMap, Functor, Monad}
+import cats.{Functor, Monad}
 import cats.syntax.all._
 
 import scala.util.{Failure, Success, Try}
