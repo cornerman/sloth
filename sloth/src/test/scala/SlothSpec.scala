@@ -5,6 +5,7 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import sloth._
 import cats.implicits._
+import cats.~>
 import monix.reactive.Observable
 import monix.execution.Scheduler
 
@@ -205,15 +206,12 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
   }
 
   "run multi arg result type" in {
-    implicit def singleToObservable: ResultMapping[MultiTypeArgResult.Single, Observable] = new ResultMapping[MultiTypeArgResult.Single, Observable] {
-      def apply[T](result: MultiTypeArgResult.Single[T]): Observable[T] = Observable.fromFuture(result.future)
-    }
-    implicit def streamToObservable: ResultMapping[MultiTypeArgResult.Stream, Observable] = new ResultMapping[MultiTypeArgResult.Stream, Observable] {
-      def apply[T](result: MultiTypeArgResult.Stream[T]): Observable[T] = result.observable
-    }
-    implicit val observableToFuture: ResultMapping[Observable, Future] = new ResultMapping[Observable, Future] {
-      def apply[T](result: Observable[T]): Future[T] = result.lastL.runAsync
-    }
+    implicit def singleToObservable: ResultMapping[MultiTypeArgResult.Single, Observable] =
+      ResultMapping(Lambda[MultiTypeArgResult.Single ~> Observable](r => Observable.fromFuture(r.future)))
+    implicit def streamToObservable: ResultMapping[MultiTypeArgResult.Stream, Observable] =
+      ResultMapping(Lambda[MultiTypeArgResult.Stream ~> Observable](_.observable))
+    implicit val observableToFuture: ResultMapping[Observable, Future] =
+      ResultMapping(Lambda[Observable ~> Future](_.lastL.runAsync))
 
     object Backend {
       val router = Router[PickleType, Observable]
