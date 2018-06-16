@@ -14,7 +14,7 @@ object ClientFailure {
 }
 case class ClientException(failure: ClientFailure) extends Exception(failure.toString)
 
-trait ClientFailureConvert[T] {
+trait ClientFailureConvert[+T] {
   def convert(failure: ClientFailure): T
 }
 object ClientFailureConvert {
