@@ -7,7 +7,7 @@ import cats.{MonadError, ~>}
 //TODO: move implicits to wire method
 class Client[PickleType, Result[_], ErrorType](
   private[sloth] val transport: RequestTransport[PickleType, Result],
-  private[sloth] val logger: LogHandler
+  private[sloth] val logger: LogHandler[Result]
 )(implicit
   private[sloth] val monad: MonadError[Result, _ >: ErrorType],
   private[sloth] val failureConverter: ClientFailureConvert[ErrorType]
@@ -17,7 +17,7 @@ class Client[PickleType, Result[_], ErrorType](
 }
 
 object Client {
-  def apply[PickleType, Result[_], ErrorType : ClientFailureConvert](transport: RequestTransport[PickleType, Result], logger: LogHandler = new LogHandler)(implicit monad: MonadError[Result, _ >: ErrorType]) = new Client[PickleType, Result, ErrorType](transport, logger)
+  def apply[PickleType, Result[_], ErrorType : ClientFailureConvert](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = new LogHandler[Result])(implicit monad: MonadError[Result, _ >: ErrorType]) = new Client[PickleType, Result, ErrorType](transport, logger)
 }
 
 trait RequestTransport[PickleType, Result[_]] { transport =>
@@ -33,6 +33,6 @@ object RequestTransport {
   }
 }
 
-class LogHandler {
-  def logRequest[Result[_]](path: List[String], argumentObject: Product, result: Result[_])(implicit monad: MonadError[Result, _]): Unit = ()
+class LogHandler[Result[_]] {
+  def logRequest(path: List[String], argumentObject: Product, result: Result[_]): Unit = ()
 }
