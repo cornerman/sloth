@@ -143,7 +143,7 @@ object Translator {
 }
 
 object TraitMacro {
-  def impl[Trait, PickleType, Result[_], ErrorType]
+  def impl[Trait, PickleType, Result[_]]
     (c: Context)
     (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = Translator(c) { t =>
     import c.universe._
