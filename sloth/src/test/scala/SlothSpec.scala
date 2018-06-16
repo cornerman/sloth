@@ -206,9 +206,9 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
   }
 
   "run multi arg result type" in {
-    implicit def singleToObservable: ResultMapping[MultiTypeArgResult.Single, Observable] =
+    implicit val singleToObservable: ResultMapping[MultiTypeArgResult.Single, Observable] =
       ResultMapping(Lambda[MultiTypeArgResult.Single ~> Observable](r => Observable.fromFuture(r.future)))
-    implicit def streamToObservable: ResultMapping[MultiTypeArgResult.Stream, Observable] =
+    implicit val streamToObservable: ResultMapping[MultiTypeArgResult.Stream, Observable] =
       ResultMapping(Lambda[MultiTypeArgResult.Stream ~> Observable](_.observable))
     implicit val observableToFuture: ResultMapping[Observable, Future] =
       ResultMapping(Lambda[Observable ~> Future](_.lastL.runAsync))
