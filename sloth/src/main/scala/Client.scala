@@ -15,7 +15,7 @@ class Client[PickleType, Result[_]](
 }
 
 object Client {
-  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result])(implicit monadError: MonadErrorProvider[Result]): Client[PickleType, Result] = new Client(transport, new LogHandler[Result])
+  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result])(implicit monadError: MonadErrorProvider[Result]): Client[PickleType, Result] = new Client(transport, LogHandler.empty[Result])
   def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result])(implicit monadError: MonadErrorProvider[Result]): Client[PickleType, Result] = new Client(transport, logger)
 
   def apply[PickleType, Result[_], ErrorType](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit monadError: MonadError[Result, _ >: ErrorType], converter: ClientFailureConvert[ErrorType]): Client[PickleType, Result] = new Client(transport, logger)(new MonadErrorProvider.Converted[Result, ErrorType])
