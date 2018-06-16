@@ -1,23 +1,24 @@
 package sloth
 
+import cats.{MonadError, ~>}
 import sloth.internal.TraitMacro
 
-import cats.{MonadError, ~>}
-
 //TODO: move implicits to wire method
-class Client[PickleType, Result[_], ErrorType](
+class Client[PickleType, Result[_]](
   private[sloth] val transport: RequestTransport[PickleType, Result],
   private[sloth] val logger: LogHandler[Result]
 )(implicit
-  private[sloth] val monad: MonadError[Result, _ >: ErrorType],
-  private[sloth] val failureConverter: ClientFailureConvert[ErrorType]
+  private[sloth] val monadErrorProvider: MonadErrorProvider[Result]
 ) {
 
-  def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result, ErrorType]
+  def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result]
 }
 
 object Client {
-  def apply[PickleType, Result[_], ErrorType : ClientFailureConvert](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = new LogHandler[Result])(implicit monad: MonadError[Result, _ >: ErrorType]) = new Client[PickleType, Result, ErrorType](transport, logger)
+  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result])(implicit monadError: MonadErrorProvider[Result]): Client[PickleType, Result] = new Client(transport, new LogHandler[Result])
+  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result])(implicit monadError: MonadErrorProvider[Result]): Client[PickleType, Result] = new Client(transport, logger)
+
+  def apply[PickleType, Result[_], ErrorType](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = new LogHandler[Result])(implicit monadError: MonadError[Result, _ >: ErrorType], converter: ClientFailureConvert[ErrorType]): Client[PickleType, Result] = new Client(transport, logger)(new MonadErrorProvider.Converted[Result, ErrorType])
 }
 
 trait RequestTransport[PickleType, Result[_]] { transport =>

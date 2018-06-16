@@ -2,10 +2,10 @@ package sloth.internal
 
 import sloth._
 import chameleon._
-import cats.Functor
+import cats.{Applicative, FlatMap, Functor, Monad}
 import cats.syntax.all._
 
-import scala.util.{Success, Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 class RouterImpl[PickleType, Result[_] : Functor] {
   def execute[T <: Product, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): RouterResult[PickleType, Result] = {
@@ -23,8 +23,9 @@ class RouterImpl[PickleType, Result[_] : Functor] {
   }
 }
 
-class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Result, ErrorType]) {
+class ClientImpl[PickleType, Result[_]](client: Client[PickleType, Result]) {
   import client._
+  private implicit val monad: Monad[Result] = client.monadErrorProvider.monad
 
   def execute[T <: Product, R](path: List[String], arguments: T)(implicit deserializer: Deserializer[R, PickleType], serializer: Serializer[T, PickleType]): Result[R] = {
     val serializedArguments = serializer.serialize(arguments)
@@ -33,10 +34,10 @@ class ClientImpl[PickleType, Result[_], ErrorType](client: Client[PickleType, Re
       case Success(response) => response.flatMap { response =>
         deserializer.deserialize(response) match {
           case Right(value) => monad.pure[R](value)
-          case Left(t) => monad.raiseError(failureConverter.convert(ClientFailure.DeserializerError(t)))
+          case Left(t) => monadErrorProvider.raiseError(ClientFailure.DeserializerError(t))
         }
       }
-      case Failure(t) => monad.raiseError(failureConverter.convert(ClientFailure.TransportError(t)))
+      case Failure(t) => monadErrorProvider.raiseError(ClientFailure.TransportError(t))
     }
 
     logger.logRequest(path, arguments, result)
