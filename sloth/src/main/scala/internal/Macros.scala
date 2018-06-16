@@ -118,6 +118,20 @@ class Translator[C <: Context](val c: C) {
       // TODO: put into validateMethod
       abort(s"Return type '$tpe' has more than one type argument, this is not supported in Api traits.")
   }
+
+  def inferImplicitResultMapping(from: Type, to: Type): Tree = {
+    val rawMapping = typeOf[sloth.ResultMapping[Any, Any]]
+    val typeArgs = from :: to :: Nil
+    val mapping = internal.reificationSupport.TypeRef(NoPrefix, rawMapping.typeConstructor.typeSymbol, typeArgs)
+    c.inferImplicitValue(mapping) match {
+      case EmptyTree => abort(s"""Cannot find implicit mapping '$mapping' for occurring result types. Define it with:
+        |  implicit val mapping: $mapping = new $mapping {
+          |    def apply[T](result = $from[T]): $to[T] = ???
+        |  }
+        """.stripMargin)
+      case tree => tree
+    }
+  }
 }
 
 object Translator {
@@ -144,13 +158,11 @@ object TraitMacro {
       val paramsObject = t.paramsAsObject(method, path)
       val paramListValue = t.newParamsObject(method, path)
       val (outerReturnType, innerReturnType) = t.findOuterAndInnerReturnType(method.finalResultType)
-
-      //TODO infer implicit value in macro instead of emitting implicitly!
-      // val resultMapping = c.inferImplicitValue(outerReturnType)
+      val resultMapping = t.inferImplicitResultMapping(from = resultTag.tpe.typeConstructor, to = outerReturnType)
 
       (q"""
         override def ${symbol.name}(...$parameters): ${method.finalResultType} = {
-          val resultMapping = implicitly[${t.slothPkg}.ResultMapping[${resultTag.tpe.typeConstructor}, $outerReturnType]]
+          val resultMapping = $resultMapping
           val result = impl.execute[${paramsObject.tpe}, $innerReturnType]($path, $paramListValue)
           resultMapping(result)
         }
@@ -186,13 +198,11 @@ object RouterMacro {
       val paramsObject = t.paramsAsObject(method, path)
       val argParams: List[List[Tree]] = t.objectToParams(method, TermName("args"))
       val (outerReturnType, innerReturnType) = t.findOuterAndInnerReturnType(method.finalResultType)
-
-      //TODO infer implicit value in macro instead of emitting implicitly!
-      // val resultMapping = c.inferImplicitValue(outerReturnType)
+      val resultMapping = t.inferImplicitResultMapping(from = outerReturnType, to = resultTag.tpe.typeConstructor)
 
       val payloadFunction =
         q"""(payload: ${pickleTypeTag.tpe}) => {
-          val resultMapping = implicitly[${t.slothPkg}.ResultMapping[$outerReturnType, ${resultTag.tpe.typeConstructor}]]
+          val resultMapping = $resultMapping
           impl.execute[${paramsObject.tpe}, $innerReturnType]($path, payload) { args =>
             val result = value.${symbol.name.toTermName}(...$argParams)
             resultMapping(result)
