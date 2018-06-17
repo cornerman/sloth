@@ -73,7 +73,7 @@ object Transport extends RequestTransport[PickleType, Future] {
         }
 }
 
-val client = Client[PickleType, Future, Throwable](Transport)
+val client = , ClientFailureClient[PickleType, Future](Transport)
 val api: Api = client.wire[Api]
 ```
 
@@ -141,7 +141,7 @@ In your client, you can use any `cats.MonadError` that can capture a `ClientFail
 ```scala
 type ClientResult[T] = Either[ClientFailure, T]
 
-val client = Client[PickleType, ClientResult, ClientFailure](Transport)
+val client = Client[PickleType, ClientResult](Transport)
 val api: Api = client.wire[Api[ClientResult]]
 ```
 
@@ -175,7 +175,7 @@ object MyLogHandler extends LogHandler {
   def logRequest[Result[_], ErrorType](path: List[String], argumentObject: Product, result: Result[_])(implicit monad: MonadError[Result, _ >: ErrorType]): Unit = ()
 }
 
-val client = Client[PickleType, ClientResult, ClientFailure](Transport, MyLogHandler)
+val client = Client[PickleType, ClientResult](Transport, MyLogHandler)
 ```
 
 ### Method overloading
