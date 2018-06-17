@@ -1,16 +1,16 @@
 package sloth
 
 import cats.{Monad, MonadError}
+import scala.annotation.implicitNotFound
 
-sealed trait MonadClientFailure[Result[_]] extends Monad[Result] {
+@implicitNotFound(msg = "Cannot find implicit MonadClientFailure[$Result]. Make sure there is an implicit cats.MonadError[$Result, ErrorType] and a sloth.ClientFailureConvert[ErrorType] forSome ErrorType.")
+sealed trait MonadClientFailure[Result[_]] {
+  implicit def monad: Monad[Result]
   def raiseError[T](failure: ClientFailure): Result[T]
 }
 object MonadClientFailure {
-  def apply[Result[_], ErrorType](implicit monad: MonadError[Result, _ >: ErrorType], converter: ClientFailureConvert[ErrorType]) =
-    new MonadClientFailure[Result] {
-      def raiseError[T](failure: ClientFailure): Result[T] = monad.raiseError[T](converter.convert(failure))
-      def pure[A](x: A): Result[A] = monad.pure(x)
-      def flatMap[A, B](fa: Result[A])(f: A => Result[B]): Result[B] = monad.flatMap(fa)(f)
-      def tailRecM[A, B](a: A)(f: A => Result[Either[A,B]]): Result[B] = monad.tailRecM(a)(f)
-    }
+  implicit def FromMonadError[Result[_], ErrorType](implicit monadError: MonadError[Result, ErrorType], converter: ClientFailureConvert[ErrorType]): MonadClientFailure[Result] = new MonadClientFailure[Result] {
+    def monad = monadError
+    def raiseError[T](failure: ClientFailure): Result[T] = monad.raiseError[T](converter.convert(failure))
+  }
 }
