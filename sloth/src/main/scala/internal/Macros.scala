@@ -112,12 +112,13 @@ class Translator[C <: Context](val c: C) {
 
 
   def findOuterAndInnerReturnType(tpe: Type): (Type, Type) = tpe.typeArgs match {
-    case Nil => (typeOf[cats.Id[Any]].typeConstructor, tpe)
+    case Nil =>
+      abort(s"Return type '$tpe' no type arguments, this is not supported in Api traits. If you want to return just type `$tpe` use cats.Id as return type.")
     case t :: Nil => (tpe.typeConstructor, t)
     case _ =>
       // TODO: is there a way and need to support multiple type args?
       // TODO: put into validateMethod
-      abort(s"Return type '$tpe' has more than one type argument, this is not supported in Api traits.")
+      abort(s"Return type '$tpe' has more than one type argument, this is not supported in Api traits. You can workaround this by defining a type alias `F[T] = ${tpe.typeConstructor}[..., T, ...]` and using `F` as return type.")
   }
 
   def inferImplicitResultMapping(from: Type, to: Type): Tree = {
