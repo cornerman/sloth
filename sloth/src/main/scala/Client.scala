@@ -15,7 +15,7 @@ class Client[PickleType, Result[_]](
 }
 
 object Client {
-  def apply[PickleType, Result[_], ErrorType](transport: RequestTransport[PickleType, Result], logger: LogHandler = LogHandler.empty)(implicit monad: MonadClientFailure[Result]): Client[PickleType, Result] = new Client(transport, logger)(monad)
+  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler = LogHandler.empty)(implicit monad: MonadClientFailure[Result]): Client[PickleType, Result] = new Client(transport, logger)(monad)
 }
 
 trait RequestTransport[PickleType, Result[_]] { transport =>
