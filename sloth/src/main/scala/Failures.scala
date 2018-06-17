@@ -18,10 +18,10 @@ trait ClientFailureConvert[+T] {
   def convert(failure: ClientFailure): T
 }
 object ClientFailureConvert {
-  implicit def ToClientFailure: ClientFailureConvert[ClientFailure] = new ClientFailureConvert[ClientFailure] {
-    override def convert(failure: ClientFailure) = failure
+  def apply[T](f: ClientFailure => T) = new ClientFailureConvert[T] {
+    def convert(failure: ClientFailure): T = f(failure)
   }
-  implicit def ToClientException: ClientFailureConvert[ClientException] = new ClientFailureConvert[ClientException] {
-    override def convert(failure: ClientFailure) = ClientException(failure)
-  }
+
+  implicit def ToClientFailure: ClientFailureConvert[ClientFailure] = ClientFailureConvert[ClientFailure](identity)
+  implicit def ToClientException: ClientFailureConvert[ClientException] = ClientFailureConvert[ClientException](ClientException(_))
 }

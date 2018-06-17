@@ -78,7 +78,7 @@ object Transport extends RequestTransport[PickleType, Future] {
         }
 }
 
-val client = Client[PickleType, Future, ClientException](Transport)
+val client = Client[PickleType, Future, Throwable](Transport)
 val api: Api = client.wire[Api]
 ```
 
