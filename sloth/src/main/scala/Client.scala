@@ -1,6 +1,6 @@
 package sloth
 
-import cats.{MonadError, ~>}
+import cats.~>
 import sloth.internal.TraitMacro
 
 //TODO: move implicits to wire method
