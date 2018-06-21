@@ -8,14 +8,14 @@ class Client[PickleType, Result[_]](
   private[sloth] val transport: RequestTransport[PickleType, Result],
   private[sloth] val logger: LogHandler[Result]
 )(implicit
-  private[sloth] val monadFailure: MonadClientFailure[Result]
+  private[sloth] val monadFailure: ClientResultError[Result]
 ) {
 
   def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result]
 }
 
 object Client {
-  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit monad: MonadClientFailure[Result]): Client[PickleType, Result] = new Client(transport, logger)(monad)
+  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit monad: ClientResultError[Result]): Client[PickleType, Result] = new Client(transport, logger)(monad)
 }
 
 trait RequestTransport[PickleType, Result[_]] { transport =>
