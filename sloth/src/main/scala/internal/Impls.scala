@@ -2,8 +2,8 @@ package sloth.internal
 
 import sloth._
 import chameleon._
-import cats.{Functor, Monad}
-import cats.syntax.all._
+import cats.Functor
+import cats.syntax.functor._
 
 import scala.util.{Failure, Success, Try}
 
@@ -24,17 +24,14 @@ class RouterImpl[PickleType, Result[_] : Functor] {
 }
 
 class ClientImpl[PickleType, Result[_]](client: Client[PickleType, Result]) {
-  import client._, monadFailure._
+  import client._
 
   def execute[T <: Product, R](path: List[String], arguments: T)(implicit deserializer: Deserializer[R, PickleType], serializer: Serializer[T, PickleType]): Result[R] = {
     val serializedArguments = serializer.serialize(arguments)
     val request: Request[PickleType] = Request(path, serializedArguments)
     val result: Result[R] = Try(transport(request)) match {
-      case Success(response) => response.flatMap { response =>
-        deserializer.deserialize(response) match {
-          case Right(value) => monad.pure[R](value)
-          case Left(t) => monadFailure.raiseError(ClientFailure.DeserializerError(t))
-        }
+      case Success(response) => monadFailure.mapMaybe(response) { response =>
+        deserializer.deserialize(response).left.map(ClientFailure.DeserializerError(_))
       }
       case Failure(t) => monadFailure.raiseError(ClientFailure.TransportError(t))
     }

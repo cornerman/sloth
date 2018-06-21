@@ -6,7 +6,7 @@ import sloth.internal.TraitMacro
 //TODO: move implicits to wire method
 class Client[PickleType, Result[_]](
   private[sloth] val transport: RequestTransport[PickleType, Result],
-  private[sloth] val logger: LogHandler
+  private[sloth] val logger: LogHandler[Result]
 )(implicit
   private[sloth] val monadFailure: MonadClientFailure[Result]
 ) {
@@ -15,7 +15,7 @@ class Client[PickleType, Result[_]](
 }
 
 object Client {
-  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler = LogHandler.empty)(implicit monad: MonadClientFailure[Result]): Client[PickleType, Result] = new Client(transport, logger)(monad)
+  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit monad: MonadClientFailure[Result]): Client[PickleType, Result] = new Client(transport, logger)(monad)
 }
 
 trait RequestTransport[PickleType, Result[_]] { transport =>
@@ -31,11 +31,11 @@ object RequestTransport {
   }
 }
 
-trait LogHandler {
-  def logRequest[Result[_], T](path: List[String], argumentObject: Product, result: Result[T])(implicit monad: MonadError[Result, _]): Result[T]
+trait LogHandler[Result[_]] {
+  def logRequest[T](path: List[String], argumentObject: Product, result: Result[T]): Result[T]
 }
 object LogHandler {
-  def empty: LogHandler = new LogHandler {
-    def logRequest[Result[_], T](path: List[String], argumentObject: Product, result: Result[T])(implicit monad: MonadError[Result, _]): Result[T] = result
+  def empty[Result[_]]: LogHandler[Result] = new LogHandler[Result] {
+    def logRequest[T](path: List[String], argumentObject: Product, result: Result[T]): Result[T] = result
   }
 }
