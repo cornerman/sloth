@@ -2,8 +2,11 @@ package sloth
 
 import cats.~>
 
-trait ResultMapping[From[_], To[_]] extends (From ~> To) {
+trait ResultMapping[From[_], To[_]] extends (From ~> To) { mapping =>
   def apply[T](result: From[T]): To[T]
+  final def mapK[R[_]](f: To ~> R): ResultMapping[From, R] = new ResultMapping[From, R] {
+    def apply[T](result: From[T]): R[T] = f(mapping(result))
+  }
 }
 object ResultMapping {
   implicit def identityMapping[Result[_]]: ResultMapping[Result, Result] = new ResultMapping[Result, Result] {
