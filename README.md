@@ -142,12 +142,19 @@ val router = Router[ByteBuffer, ServerResult]
     .route[Api[ServerResult]](ApiImpl)
 ```
 
-In your client, you can use any `cats.MonadError` that can capture a `ClientFailure` (see `ClientFailureConvert` for using your own failure type):
+In your client, you can use any `cats.MonadError` that can capture a `Throwable` or a `ClientFailure` (see `ClientFailureConvert` for using your own failure type):
 ```scala
-type ClientResult[T] = Either[ClientFailure, T]
+{ // capture errors in a Throwable
+    val client = Client[PickleType, Future](Transport)
+    val api: Api = client.wire[Api[Future]]
+}
 
-val client = Client[PickleType, ClientResult](Transport)
-val api: Api = client.wire[Api[ClientResult]]
+{ // capture errors properly
+    type ClientResult[T] = Future[Either[ClientFailure, T]
+    val client = Client.withError[PickleType, ClientResult, ClientFailure](Transport)
+    val api: Api = client.wire[Api[ClientResult]]
+}
+
 ```
 
 ### Mixing result types

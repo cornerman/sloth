@@ -30,10 +30,10 @@ class ClientImpl[PickleType, Result[_]](client: Client[PickleType, Result]) {
     val serializedArguments = serializer.serialize(arguments)
     val request: Request[PickleType] = Request(path, serializedArguments)
     val result: Result[R] = Try(transport(request)) match {
-      case Success(response) => monadFailure.mapMaybe(response) { response =>
+      case Success(response) => resultError.mapMaybe(response) { response =>
         deserializer.deserialize(response).left.map(ClientFailure.DeserializerError(_))
       }
-      case Failure(t) => monadFailure.raiseError(ClientFailure.TransportError(t))
+      case Failure(t) => resultError.raiseError(ClientFailure.TransportError(t))
     }
 
     logger.logRequest[R](path, arguments, result)
