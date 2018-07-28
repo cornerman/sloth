@@ -48,7 +48,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
 
     "works" in {
       val successTransport = RequestTransport[ByteBuffer, EitherResult](request => Right(request.payload))
-      val client = Client[ByteBuffer, EitherResult](successTransport)
+      val client = Client.withError[ByteBuffer, EitherResult, ClientFailure](successTransport)
       val impl = new ClientImpl(client)
 
       val argument = Argument(1)
@@ -60,7 +60,7 @@ class ImplsSpec extends FreeSpec with MustMatchers {
     "catch exception" in {
       val exception = new Exception("meh")
       val failureTransport = RequestTransport[ByteBuffer, EitherResult](_ => throw exception)
-      val client = Client[ByteBuffer, EitherResult](failureTransport)
+      val client = Client.withError[ByteBuffer, EitherResult, ClientFailure](failureTransport)
       val impl = new ClientImpl(client)
 
       val argument = Argument(1)
