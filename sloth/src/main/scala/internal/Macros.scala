@@ -113,15 +113,19 @@ class Translator[C <: Context](val c: C) {
 
   def findOuterAndInnerReturnType(tpe: Type, resolvedTpe: Type): (Type, Type) = tpe.typeArgs match {
     case Nil => (typeOf[cats.Id[_]].typeConstructor, tpe)
-    case t :: Nil => (resolvedTpe.typeConstructor, t)
+    case t :: Nil =>
+      println("SINGLE " + tpe + resolvedTpe)
+      (resolvedTpe.typeConstructor, t)
     case args =>
+      println("MULTI " + tpe + resolvedTpe)
       val concreteArgs = args.zipWithIndex.filterNot(_._1.takesTypeArgs)
       if (concreteArgs.size == 1) {
         val (concreteArg, index) = concreteArgs.head
-        val tSym = resolvedTpe.typeConstructor.typeParams(index)
+        val tSym = tpe.typeConstructor.typeParams(index)
         val tTpe = internal.typeRef(NoPrefix, tSym, Nil)
         val substituted = appliedType(resolvedTpe.typeConstructor, args.updated(index, tTpe))
         val polyType = c.internal.polyType(tSym :: Nil, substituted)
+        println("MULTI result" + polyType + concreteArg)
         (polyType, concreteArg)
       } else {
         //TODO: put into validate method
