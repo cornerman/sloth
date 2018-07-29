@@ -23,17 +23,17 @@ class Translator[C <: Context](val c: C) {
 
   def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
-  private def validateMethod(symbol: MethodSymbol, methodType: Type): Either[String, (MethodSymbol, Type)] = for {
-    _ <- methodType match {
+  private def validateMethod(symbol: MethodSymbol): Either[String, MethodSymbol] = for {
+    _ <- symbol.typeSignature match {
       case _: MethodType | _: NullaryMethodType => Valid
       case _: PolyType => Invalid(s"method ${symbol.name} has type parameters")
       case _ => Invalid(s"method ${symbol.name} has unsupported type")
     }
-  } yield (symbol, methodType)
+  } yield symbol
 
   //TODO rename overloaded methods to fun1, fun2, fun3 or append TypeSignature instead of number?
-  private def validateAllMethods(methods: List[(MethodSymbol, Type)]): List[Either[String, (MethodSymbol, Type)]] =
-    methods.groupBy(m => methodPathPart(m._1)).map {
+  private def validateAllMethods(methods: List[MethodSymbol]): List[Either[String, MethodSymbol]] =
+    methods.groupBy(methodPathPart(_)).map {
       case (_, x :: Nil) => Right(x)
       case (k, ms) => Left(s"""method $k is overloaded (rename the method or add a @PathName("other-name"))""")
     }.toList
@@ -42,7 +42,7 @@ class Translator[C <: Context](val c: C) {
     case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.PathName] => name.toString
   }
 
-  def definedMethodsInType(tpe: Type): List[(MethodSymbol, Type)] = for {
+  def definedMethodsInType(tpe: Type): List[MethodSymbol] = for {
     member <- tpe.decls.toList
     if member.isMethod
     if member.isPublic
@@ -50,11 +50,11 @@ class Translator[C <: Context](val c: C) {
     if !member.isConstructor
     if !member.isSynthetic
     symbol = member.asMethod
-  } yield (symbol, symbol.typeSignatureIn(tpe))
+  } yield symbol
 
-  def supportedMethodsInType(tpe: Type): List[(MethodSymbol, Type)] = {
+  def supportedMethodsInType(tpe: Type): List[MethodSymbol] = {
     val methods = definedMethodsInType(tpe)
-    val validatedMethods = methods.map { case (sym, tpe) => validateMethod(sym, tpe) }
+    val validatedMethods = methods.map { case sym => validateMethod(sym) }
     val validatedType = eitherSeq(validatedMethods)
       .flatMap(methods => eitherSeq(validateAllMethods(methods)))
 
@@ -111,16 +111,16 @@ class Translator[C <: Context](val c: C) {
     }
   }
 
-  def findOuterAndInnerReturnType(tpe: Type): (Type, Type) = tpe.typeArgs match {
+  def findOuterAndInnerReturnType(tpe: Type, resolvedTpe: Type): (Type, Type) = tpe.typeArgs match {
     case Nil => (typeOf[cats.Id[_]].typeConstructor, tpe)
-    case t :: Nil => (tpe.typeConstructor, t)
+    case t :: Nil => (resolvedTpe.typeConstructor, t)
     case args =>
       val concreteArgs = args.zipWithIndex.filterNot(_._1.takesTypeArgs)
       if (concreteArgs.size == 1) {
         val (concreteArg, index) = concreteArgs.head
-        val tSym = tpe.typeConstructor.typeParams(index)
+        val tSym = resolvedTpe.typeConstructor.typeParams(index)
         val tTpe = internal.typeRef(NoPrefix, tSym, Nil)
-        val substituted = appliedType(tpe.typeConstructor, args.updated(index, tTpe))
+        val substituted = appliedType(resolvedTpe.typeConstructor, args.updated(index, tTpe))
         val polyType = c.internal.polyType(tSym :: Nil, substituted)
         (polyType, concreteArg)
       } else {
@@ -161,13 +161,14 @@ object TraitMacro {
     val validMethods = t.supportedMethodsInType(traitTag.tpe)
 
     val traitPathPart = t.traitPathPart(traitTag.tpe)
-    val (methodImplList, paramsObjects) = validMethods.collect { case (symbol, method) =>
+    val (methodImplList, paramsObjects) = validMethods.map { symbol =>
       val methodPathPart = t.methodPathPart(symbol)
       val path = traitPathPart :: methodPathPart :: Nil
+      val method = symbol.typeSignatureIn(traitTag.tpe)
       val parameters =  t.paramsAsValDefs(method)
       val paramsObject = t.paramsAsObject(method, path)
       val paramListValue = t.newParamsObject(method, path)
-      val (outerReturnType, innerReturnType) = t.findOuterAndInnerReturnType(method.finalResultType)
+      val (outerReturnType, innerReturnType) = t.findOuterAndInnerReturnType(symbol.returnType, method.finalResultType)
       val resultMapping = t.inferImplicitResultMapping(from = resultTag.tpe.typeConstructor, to = outerReturnType)
 
       (q"""
@@ -202,12 +203,13 @@ object RouterMacro {
     val validMethods = t.supportedMethodsInType(traitTag.tpe)
 
     val traitPathPart = t.traitPathPart(traitTag.tpe)
-    val (methodTuples, paramsObjects) = validMethods.map { case (symbol, method) =>
+    val (methodTuples, paramsObjects) = validMethods.map { symbol =>
+      val method = symbol.typeSignatureIn(traitTag.tpe)
       val methodPathPart = t.methodPathPart(symbol)
       val path = traitPathPart :: methodPathPart :: Nil
       val paramsObject = t.paramsAsObject(method, path)
       val argParams: List[List[Tree]] = t.objectToParams(method, TermName("args"))
-      val (outerReturnType, innerReturnType) = t.findOuterAndInnerReturnType(method.finalResultType)
+      val (outerReturnType, innerReturnType) = t.findOuterAndInnerReturnType(symbol.returnType, method.finalResultType)
       val resultMapping = t.inferImplicitResultMapping(from = outerReturnType, to = resultTag.tpe.typeConstructor)
 
       val payloadFunction =
@@ -285,7 +287,8 @@ object ChecksumMacro {
 
     val definedMethods = t.definedMethodsInType(traitTag.tpe)
 
-    val dataMethods:Set[MethodSignature] = definedMethods.map { case (symbol, method) =>
+    val dataMethods:Set[MethodSignature] = definedMethods.map { symbol =>
+      val method = symbol.typeSignatureIn(traitTag.tpe)
       val name = t.methodPathPart(symbol)
       val resultType = method.finalResultType
       val params = paramsOfType(method)
