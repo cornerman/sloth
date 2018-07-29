@@ -111,21 +111,18 @@ class Translator[C <: Context](val c: C) {
     }
   }
 
-  def findOuterAndInnerReturnType(tpe: Type, resolvedTpe: Type): (Type, Type) = tpe.typeArgs match {
+  def findOuterAndInnerReturnType(tpe: Type, traitType: Type): (Type, Type) = tpe.typeArgs match {
     case Nil => (typeOf[cats.Id[_]].typeConstructor, tpe)
     case t :: Nil =>
-      println("SINGLE " + tpe + resolvedTpe)
-      (resolvedTpe.typeConstructor, t)
+      (tpe.typeConstructor.asSeenFrom(traitType, traitType.typeSymbol), t)
     case args =>
-      println("MULTI " + tpe + resolvedTpe)
       val concreteArgs = args.zipWithIndex.filterNot(_._1.takesTypeArgs)
       if (concreteArgs.size == 1) {
         val (concreteArg, index) = concreteArgs.head
         val tSym = tpe.typeConstructor.typeParams(index)
         val tTpe = internal.typeRef(NoPrefix, tSym, Nil)
-        val substituted = appliedType(resolvedTpe.typeConstructor, args.updated(index, tTpe))
+        val substituted = appliedType(tpe.typeConstructor, args.updated(index, tTpe)).asSeenFrom(traitType, traitType.typeSymbol)
         val polyType = c.internal.polyType(tSym :: Nil, substituted)
-        println("MULTI result" + polyType + concreteArg)
         (polyType, concreteArg)
       } else {
         //TODO: put into validate method
@@ -172,7 +169,7 @@ object TraitMacro {
       val parameters =  t.paramsAsValDefs(method)
       val paramsObject = t.paramsAsObject(method, path)
       val paramListValue = t.newParamsObject(method, path)
-      val (outerReturnType, innerReturnType) = t.findOuterAndInnerReturnType(symbol.returnType, method.finalResultType)
+      val (outerReturnType, innerReturnType) = t.findOuterAndInnerReturnType(symbol.returnType, traitTag.tpe)
       val resultMapping = t.inferImplicitResultMapping(from = resultTag.tpe.typeConstructor, to = outerReturnType)
 
       (q"""
@@ -213,7 +210,7 @@ object RouterMacro {
       val path = traitPathPart :: methodPathPart :: Nil
       val paramsObject = t.paramsAsObject(method, path)
       val argParams: List[List[Tree]] = t.objectToParams(method, TermName("args"))
-      val (outerReturnType, innerReturnType) = t.findOuterAndInnerReturnType(symbol.returnType, method.finalResultType)
+      val (outerReturnType, innerReturnType) = t.findOuterAndInnerReturnType(symbol.returnType, traitTag.tpe)
       val resultMapping = t.inferImplicitResultMapping(from = outerReturnType, to = resultTag.tpe.typeConstructor)
 
       val payloadFunction =
