@@ -5,7 +5,8 @@ import scala.concurrent.Future
 import scala.util.control.NonFatal
 import sloth._
 import cats.implicits._
-import cats.~>
+import cats.{Id, ~>}
+import monix.eval.Task
 import monix.reactive.Observable
 import monix.execution.Scheduler
 
@@ -74,13 +75,27 @@ trait MultiTypeArgApi[Single[_], Stream[_]] {
   def fun: Single[Int]
   def stream: Stream[Int]
 }
-object MultiTypeArgResult {
-  case class Single[T](future: Future[T])
-  case class Stream[T](observable: Observable[T])
+object MultiTypeArgApiImpl extends MultiTypeArgApi[Future, Observable] {
+  def fun = Future.successful(1)
+  def stream = Observable(1, 2)
 }
-object MultiTypeArgApiImpl extends MultiTypeArgApi[MultiTypeArgResult.Single, MultiTypeArgResult.Stream] {
-  def fun = MultiTypeArgResult.Single(Future.successful(1))
-  def stream = MultiTypeArgResult.Stream(Observable(1, 2))
+
+// type fun
+trait TypeFunArgApi[Fun[F[_], _]] {
+  def fun: Task[Int]
+  def stream: Observable[Int]
+  def state: Fun[Task, String]
+  def sync: Int
+}
+object TypeFunArgApi {
+  type Client[F[_], T] = F[T]
+  type Server[F[_], T] = String => F[T]
+}
+object TypeFunArgApiImpl extends TypeFunArgApi[TypeFunArgApi.Server] {
+  def fun = Task.pure(0)
+  def stream = Observable(1, 2)
+  def state = state => Task.pure(state)
+  def sync = 5
 }
 
 class SlothSpec extends AsyncFreeSpec with MustMatchers {
@@ -206,16 +221,14 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
   }
 
   "run multi arg result type" in {
-    implicit val singleToObservable: ResultMapping[MultiTypeArgResult.Single, Observable] =
-      ResultMapping(Lambda[MultiTypeArgResult.Single ~> Observable](r => Observable.fromFuture(r.future)))
-    implicit val streamToObservable: ResultMapping[MultiTypeArgResult.Stream, Observable] =
-      ResultMapping(Lambda[MultiTypeArgResult.Stream ~> Observable](_.observable))
+    implicit val singleToObservable: ResultMapping[Future, Observable] =
+      ResultMapping(Lambda[Future ~> Observable](Observable.fromFuture(_)))
     implicit val observableToFuture: ResultMapping[Observable, Future] =
       ResultMapping(Lambda[Observable ~> Future](_.lastL.runAsync))
 
     object Backend {
       val router = Router[PickleType, Observable]
-        .route[MultiTypeArgApi[MultiTypeArgResult.Single, MultiTypeArgResult.Stream]](MultiTypeArgApiImpl)
+        .route[MultiTypeArgApi[Future, Observable]](MultiTypeArgApiImpl)
     }
 
     object Frontend {
@@ -237,6 +250,63 @@ class SlothSpec extends AsyncFreeSpec with MustMatchers {
     } yield {
       fun mustEqual 1
       stream mustEqual List(1, 2)
+    }
+  }
+
+  "run result fun type" in {
+    import cats.derived.auto.functor._
+
+    case class Transferable[T](f: String => Observable[T])
+
+    implicit val singleToTransferable: ResultMapping[Task, Transferable] =
+      ResultMapping(Lambda[Task ~> Transferable](f => Transferable(_ => Observable.fromTask(f))))
+    implicit val streamToTransferable: ResultMapping[Observable, Transferable] =
+      ResultMapping(Lambda[Observable ~> Transferable](o => Transferable(_ => o)))
+    implicit val syncToTransferable: ResultMapping[Id, Transferable] =
+      ResultMapping(Lambda[Id ~> Transferable](v => Transferable(_ => Observable.now(v))))
+    implicit def stateFunToTransferable[F[_]](implicit mapping: ResultMapping[F, Transferable]): ResultMapping[TypeFunArgApi.Server[F, ?], Transferable] =
+      new ResultMapping[TypeFunArgApi.Server[F, ?], Transferable] {
+        override def apply[T](f: TypeFunArgApi.Server[F, T]): Transferable[T] = Transferable { state =>
+          mapping(f(state)).f(state)
+        }
+      }
+    implicit val observableToTask: ResultMapping[Observable, Task] =
+      ResultMapping(Lambda[Observable ~> Task](_.lastL))
+    implicit val observableToId: ResultMapping[Observable, Id] =
+      ResultMapping(Lambda[Observable ~> Id](o => {
+        // cannot use Await.result in js, just poll for the sake of this test
+        val fut = o.headL.runAsync
+        while (!fut.isCompleted) {}
+        fut.value.get.get
+      }))
+
+    object Backend {
+      val router = Router[PickleType, Transferable]
+        .route[TypeFunArgApi[TypeFunArgApi.Server]](TypeFunArgApiImpl)
+    }
+
+    object Frontend {
+      object Transport extends RequestTransport[PickleType, Observable] {
+        override def apply(request: Request[PickleType]): Observable[PickleType] =
+          Backend.router(request).toEither match {
+            case Right(result) => result.f("harals")
+            case Left(err) => Observable.raiseError(new Exception(err.toString))
+          }
+      }
+
+      val client = Client[PickleType, Observable](Transport)
+      val api = client.wire[TypeFunArgApi[TypeFunArgApi.Client]]
+    }
+
+    for {
+      fun <- Frontend.api.fun.runAsync
+      stream <- Frontend.api.stream.foldLeftL[List[Int]](Nil)((l,i) => l :+ i).runAsync
+      state <- Frontend.api.state.runAsync
+    } yield {
+      fun mustEqual 0
+      stream mustEqual List(1, 2)
+      state mustEqual "harals"
+      Frontend.api.sync mustEqual 5
     }
   }
 }

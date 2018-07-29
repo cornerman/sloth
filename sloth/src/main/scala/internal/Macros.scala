@@ -111,21 +111,28 @@ class Translator[C <: Context](val c: C) {
     }
   }
 
-
   def findOuterAndInnerReturnType(tpe: Type): (Type, Type) = tpe.typeArgs match {
-    case Nil =>
-      abort(s"Return type '$tpe' no type arguments, this is not supported in Api traits. If you want to return just type `$tpe` use cats.Id as return type.")
+    case Nil => (typeOf[cats.Id[_]].typeConstructor, tpe)
     case t :: Nil => (tpe.typeConstructor, t)
-    case _ =>
-      // TODO: is there a way and need to support multiple type args?
-      // TODO: put into validateMethod
-      abort(s"Return type '$tpe' has more than one type argument, this is not supported in Api traits. You can workaround this by defining a type alias `F[T] = ${tpe.typeConstructor}[..., T, ...]` and using `F` as return type.")
+    case args =>
+      val concreteArgs = args.zipWithIndex.filterNot(_._1.takesTypeArgs)
+      if (concreteArgs.size == 1) {
+        val (concreteArg, index) = concreteArgs.head
+        val tSym = tpe.typeConstructor.typeParams(index)
+        val tTpe = internal.typeRef(NoPrefix, tSym, Nil)
+        val substituted = appliedType(tpe.typeConstructor, args.updated(index, tTpe))
+        val polyType = c.internal.polyType(tSym :: Nil, substituted)
+        (polyType, concreteArg)
+      } else {
+        //TODO: put into validate method
+        abort(s"Return type '$tpe' of method has multiple fitting type arguments, this is not supported in Api traits. You can workaround this by defining a type alias `F[T] = ${tpe.typeConstructor}[..., T, ...]` and using `F` as return type.")
+      }
   }
 
   def inferImplicitResultMapping(from: Type, to: Type): Tree = {
     val rawMapping = typeOf[sloth.ResultMapping[Any, Any]]
     val typeArgs = from :: to :: Nil
-    val mapping = internal.reificationSupport.TypeRef(NoPrefix, rawMapping.typeConstructor.typeSymbol, typeArgs)
+    val mapping = internal.typeRef(NoPrefix, rawMapping.typeConstructor.typeSymbol, typeArgs)
     c.inferImplicitValue(mapping) match {
       case EmptyTree => abort(s"""Cannot find implicit mapping '$mapping' for occurring result types. Define it with:
         |  implicit val mapping: $mapping = new $mapping {
