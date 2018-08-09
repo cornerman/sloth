@@ -46,7 +46,8 @@ class Translator[C <: Context](val c: C) {
   }
 
   def definedMethodsInType(tpe: Type): List[(MethodSymbol, Type)] = for {
-    member <- tpe.decls.toList
+    member <- tpe.members.toList
+    if member.isAbstract
     if member.isMethod
     if member.isPublic
     if !member.isConstructor
