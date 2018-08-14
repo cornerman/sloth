@@ -22,8 +22,10 @@ trait EmptyApi
 object EmptyApi extends EmptyApi
 
 //shared
-trait Api[Result[_]] {
+trait ExtendedApi[Result[_]] {
   def simple: Result[Int]
+}
+trait Api[Result[_]] extends ExtendedApi[Result] {
   def fun(a: Int, b: String = "drei"): Result[Int]
   def fun2(a: Int, b: String): Result[Int]
   def multi(a: Int)(b: Int): Result[Int]
