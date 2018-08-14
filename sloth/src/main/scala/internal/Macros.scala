@@ -132,7 +132,7 @@ object TraitMacro {
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
     val traitPathPart = t.traitPathPart(traitTag.tpe)
-    val (methodImplList, paramsObjects) = validMethods.collect { case (symbol, method) if symbol.isAbstract =>
+    val (methodImplList, paramsObjects) = validMethods.collect { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
       val path = traitPathPart :: methodPathPart :: Nil
       val parameters =  t.paramsAsValDefs(method)
