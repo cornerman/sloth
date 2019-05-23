@@ -9,7 +9,7 @@ object Deps {
   val scalaTest = dep("org.scalatest" %%% "scalatest" % "3.0.5")
   val cats = dep("org.typelevel" %%% "cats-core" % "1.1.0")
   val kittens = dep("org.typelevel" %%% "kittens" % "1.0.0-RC3")
-  val chameleon = dep("com.github.cornerman.chameleon" %%% "chameleon" % "7dacc9f")
+  val chameleon = dep("com.github.cornerman.chameleon" %%% "chameleon" % "8acf4e4")
   val boopickle = dep("io.suzaku" %%% "boopickle" % "1.3.0")
   val circe = new {
     private val version = "0.9.3"
