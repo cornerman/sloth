@@ -2,8 +2,8 @@ inThisBuild(Seq(
   organization := "com.github.cornerman",
   version      := "0.1.0-SNAPSHOT",
 
-  scalaVersion := "2.12.6",
-  crossScalaVersions := Seq("2.11.12", "2.12.6"),
+  scalaVersion := "2.12.8",
+  crossScalaVersions := Seq("2.11.12", "2.12.8"),
 
   resolvers ++=
     ("jitpack" at "https://jitpack.io") ::
@@ -38,7 +38,7 @@ lazy val commonSettings = Seq(
     }
   },
 
-  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.4")
+  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
 )
 
 enablePlugins(ScalaJSPlugin)
