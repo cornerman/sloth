@@ -43,6 +43,10 @@ class Translator[C <: Context](val c: C) {
     case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.PathName] => name.toString
   }
 
+  private def findSerialize(annotations: Seq[Annotation]) = annotations.reverse.collectFirst {
+    case annotation if annotation.tpe <:< typeOf[sloth.SerializeParametersAs] => annotation.tpe
+  }
+
   def definedMethodsInType(tpe: Type): List[(MethodSymbol, Type)] = for {
     member <- tpe.members.toList
     if member.isAbstract
@@ -65,6 +69,9 @@ class Translator[C <: Context](val c: C) {
     }
   }
 
+  def serializeOfTrait(tpe: Type): Type =
+    findSerialize(tpe.typeSymbol.annotations).getOrElse(typeOf[sloth.SerializeParametersAs.CaseClass])
+
   //TODO what about fqn for trait to not have overlaps?
   def traitPathPart(tpe: Type): String =
     findPathName(tpe.typeSymbol.annotations).getOrElse(tpe.typeSymbol.name.toString)
@@ -77,46 +84,111 @@ class Translator[C <: Context](val c: C) {
 
   def paramsObjectName(path: List[String]) = s"_sloth_${path.mkString("_")}"
   case class ParamsObject(tree: Tree, tpe: Tree)
-  def paramsAsObject(tpe: Type, path: List[String]): ParamsObject = {
-    val params = tpe.paramLists.flatten
-    val name = paramsObjectName(path)
-    val typeName = TypeName(name)
+  def paramsAsObject(tpe: Type, path: List[String], serialize: Type): ParamsObject = serialize match {
+    case serialize if serialize =:= typeOf[sloth.SerializeParametersAs.CaseClass] =>
+      val params = tpe.paramLists.flatten
+      val name = paramsObjectName(path)
+      val typeName = TypeName(name)
 
-    params match {
-      case Nil => ParamsObject(
-        tree = EmptyTree,
-        tpe = tq"$slothPkg.Arguments.Empty.type"
-      )
-      //TODO extends AnyVal (but value class may not be a local class)
-      // case head :: Nil => ParamsObject(
-      //   tree = q"case class $typeName(${paramAsValDef(head)}) extends AnyVal",
-      //   tpe = tq"$typeName"
-      // )
-      case list => ParamsObject(
-        tree = q"case class $typeName(..${list.map(paramAsValDef)})",
-        tpe = tq"$typeName"
-      )
-    }
+      params match {
+        case Nil => ParamsObject(
+          tree = EmptyTree,
+          tpe = tq"_root_.scala.Unit"
+        )
+        //TODO extends AnyVal (but value class may not be a local class)
+        // case head :: Nil => ParamsObject(
+        //   tree = q"case class $typeName(${paramAsValDef(head)}) extends AnyVal",
+        //   tpe = tq"$typeName"
+        // )
+        case list => ParamsObject(
+          tree = q"case class $typeName(..${list.map(paramAsValDef)})",
+          tpe = tq"$typeName"
+        )
+      }
+
+    case serialize if serialize =:= typeOf[sloth.SerializeParametersAs.Tuple] =>
+      val params = tpe.paramLists.flatten
+
+      params match {
+        case Nil => ParamsObject(
+          tree = EmptyTree,
+          tpe = tq"_root_.scala.Unit"
+        )
+        case list => ParamsObject(
+          tree = EmptyTree,
+          tpe = tq"(..${list.map(_.typeSignature)})"
+        )
+      }
+
+    case serialize if serialize =:= typeOf[sloth.SerializeParametersAs.Single] =>
+      val params = tpe.paramLists.flatten
+
+      params match {
+        case Nil => ParamsObject(
+          tree = EmptyTree,
+          tpe = tq"_root_.scala.Unit"
+        )
+        case head :: Nil => ParamsObject(
+          tree = EmptyTree,
+          tpe = tq"${head.typeSignature}"
+        )
+        case list => abort(s"There are multiple parameters for an API method ($tpe), but you have enabled `@SerializeParametersAs.Single` which requires single argument methods")
+      }
   }
-  def objectToParams(tpe: Type, obj: TermName): List[List[Tree]] =
-    tpe.paramLists.map(_.map(p => q"$obj.${p.name.toTermName}"))
+  def objectToParams(tpe: Type, obj: TermName, serialize: Type): List[List[Tree]] = serialize match {
+    case serialize if serialize =:= typeOf[sloth.SerializeParametersAs.CaseClass] =>
+      tpe.paramLists.map(_.map(p => q"$obj.${p.name.toTermName}"))
 
-  def newParamsObject(tpe: Type, path: List[String]): Tree = {
-    val params = tpe.paramLists.flatten
-    val name = paramsObjectName(path)
-    val typeName = TypeName(name)
+    case serialize if serialize =:= typeOf[sloth.SerializeParametersAs.Tuple] =>
+      tpe.paramLists.flatten.size match {
+        case 0 => Nil
+        case 1 => tpe.paramLists.map(_.map(_ => q"$obj"))
+        case _ =>
+          var counter = 0
+          tpe.paramLists.map(_.map { _ => counter += 1; q"$obj.${TermName("_" + counter)}" })
+      }
 
-    params match {
-      case Nil => q"$slothPkg.Arguments.Empty"
-      case list => q"""new $typeName(..${params.map(p => q"${p.name.toTermName}")})"""
-    }
+    case serialize if serialize =:= typeOf[sloth.SerializeParametersAs.Single] =>
+      tpe.paramLists.flatten.size match {
+        case 0 => Nil
+        case 1 => tpe.paramLists.map(_.map(_ => q"$obj"))
+        case _ => abort(s"There are multiple parameters for an API method ($tpe), but you have enabled `@SerializeParametersAs.Single` which requires single argument methods")
+      }
+  }
+
+  def newParamsObject(tpe: Type, path: List[String], serialize: Type): Tree = serialize match {
+    case serialize if serialize =:= typeOf[sloth.SerializeParametersAs.CaseClass] =>
+      val params = tpe.paramLists.flatten
+      val name = paramsObjectName(path)
+      val typeName = TypeName(name)
+
+      params match {
+        case Nil => q"()"
+        case list => q"""new $typeName(..${params.map(p => q"${p.name.toTermName}")})"""
+      }
+
+    case serialize if serialize =:= typeOf[sloth.SerializeParametersAs.Tuple] =>
+      val params = tpe.paramLists.flatten
+
+      params match {
+        case Nil => q"()"
+        case list => q"""(..${params.map(p => q"${p.name.toTermName}")})"""
+      }
+
+    case serialize if serialize =:= typeOf[sloth.SerializeParametersAs.Single] =>
+      val params = tpe.paramLists.flatten
+
+      params match {
+        case Nil => q"()"
+        case head :: Nil => q"${head.name.toTermName}"
+        case list => abort(s"There are multiple parameters for an API method ($tpe), but you have enabled `@SerializeParametersAs.Single` which requires single argument methods")
+      }
   }
 }
 
 object Translator {
   def apply[T](c: Context)(f: Translator[c.type] => c.Tree): c.Expr[T] = {
     val tree = f(new Translator(c))
-    // println("XXX: " + tree)
     c.Expr(tree)
   }
 }
@@ -129,13 +201,15 @@ object TraitMacro {
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
+    val traitSerialize = t.serializeOfTrait(traitTag.tpe)
+
     val traitPathPart = t.traitPathPart(traitTag.tpe)
     val (methodImplList, paramsObjects) = validMethods.collect { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
       val path = traitPathPart :: methodPathPart :: Nil
       val parameters =  t.paramsAsValDefs(method)
-      val paramsObject = t.paramsAsObject(method, path)
-      val paramListValue = t.newParamsObject(method, path)
+      val paramsObject = t.paramsAsObject(method, path, traitSerialize)
+      val paramListValue = t.newParamsObject(method, path, traitSerialize)
       val innerReturnType = method.finalResultType.typeArgs.head
 
       (q"""
@@ -167,12 +241,14 @@ object RouterMacro {
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
+    val traitSerialize = t.serializeOfTrait(traitTag.tpe)
+
     val traitPathPart = t.traitPathPart(traitTag.tpe)
     val (methodTuples, paramsObjects) = validMethods.map { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
       val path = traitPathPart :: methodPathPart :: Nil
-      val paramsObject = t.paramsAsObject(method, path)
-      val argParams: List[List[Tree]] = t.objectToParams(method, TermName("args"))
+      val paramsObject = t.paramsAsObject(method, path, traitSerialize)
+      val argParams: List[List[Tree]] = t.objectToParams(method, TermName("args"), traitSerialize)
       val innerReturnType = method.finalResultType.typeArgs.head
       val payloadFunction =
         q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsObject.tpe}, $innerReturnType]($path, payload) { args =>
