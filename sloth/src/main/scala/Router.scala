@@ -37,10 +37,10 @@ sealed trait RouterResult[PickleType, +Result[_]] {
 object RouterResult {
   case class Value[PickleType](raw: Any, serialized: PickleType)
 
-  case class Failure[PickleType](argumentObject: Option[Product], failure: ServerFailure) extends RouterResult[PickleType, Lambda[X => Nothing]] {
+  case class Failure[PickleType](argumentObject: Option[Any], failure: ServerFailure) extends RouterResult[PickleType, Lambda[X => Nothing]] {
     def toEither = Left(failure)
   }
-  case class Success[PickleType, Result[_] : Functor](argumentObject: Product, result: Result[Value[PickleType]]) extends RouterResult[PickleType, Result] {
+  case class Success[PickleType, Result[_] : Functor](argumentObject: Any, result: Result[Value[PickleType]]) extends RouterResult[PickleType, Result] {
     def toEither = Right(result.map(_.serialized))
   }
 }
