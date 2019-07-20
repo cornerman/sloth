@@ -26,7 +26,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       val pickledInput = Serializer[Argument, PickleType].serialize(argument)
       val resultValue = "Argument(1)"
       val pickledResult = Serializer[String, PickleType].serialize(resultValue)
-      val result = impl.execute[Argument, String]("api" :: "f" :: Nil, pickledInput)(_.toString)
+      val result = impl.execute[Argument, String](pickledInput)(_.toString)
 
       result mustEqual Success[PickleType, Id](argument, Value(resultValue, pickledResult))
     }
@@ -37,7 +37,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       val argument = Argument(1)
       val pickledInput = Serializer[Argument, PickleType].serialize(argument)
       val exception = new Exception("meh")
-      val result = impl.execute[Argument, String]("api" :: "f" :: Nil, pickledInput)(_ => throw exception)
+      val result = impl.execute[Argument, String](pickledInput)(_ => throw exception)
 
       result mustEqual Failure(Some(argument), ServerFailure.HandlerError(exception))
     }
