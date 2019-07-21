@@ -1,1 +1,3 @@
 target/
+*.gpg
+sonatype.sbt

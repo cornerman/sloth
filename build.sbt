@@ -4,6 +4,7 @@ version in Global := "0.1.0-SNAPSHOT"
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.8",
   crossScalaVersions := Seq("2.11.12", "2.12.8"),
+  publishTo := sonatypePublishTo.value,
 
   scalacOptions ++=
     "-encoding" :: "UTF-8" ::
@@ -41,8 +42,7 @@ lazy val root = (project in file("."))
   .settings(commonSettings)
   .aggregate(slothJS, slothJVM)
   .settings(
-    publish := {},
-    publishLocal := {}
+    skip in publish := true
   )
 
 lazy val sloth = crossProject.crossType(CrossType.Pure)
@@ -65,3 +65,25 @@ lazy val sloth = crossProject.crossType(CrossType.Pure)
 
 lazy val slothJS = sloth.js
 lazy val slothJVM = sloth.jvm
+
+
+pomExtra in Global := {
+  <url>https://github.com/cornerman/sloth</url>
+  <licenses>
+    <license>
+      <name>The MIT License (MIT)</name>
+      <url>http://opensource.org/licenses/MIT</url>
+    </license>
+  </licenses>
+  <scm>
+    <url>https://github.com/cornerman/sloth</url>
+    <connection>scm:git:git@github.com:cornerman/sloth.git</connection>
+  </scm>
+  <developers>
+    <developer>
+      <id>jkaroff</id>
+      <name>Johannes Karoff</name>
+      <url>https://github.com/cornerman</url>
+    </developer>
+  </developers>
+}
