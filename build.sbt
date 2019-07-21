@@ -1,5 +1,5 @@
 organization in Global := "com.github.cornerman"
-version in Global := "0.1.0-SNAPSHOT"
+version in Global := "0.1.0"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.8",
