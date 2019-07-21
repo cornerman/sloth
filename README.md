@@ -12,7 +12,12 @@ This library is inspired by [autowire](https://github.com/lihaoyi/autowire). Som
 
 ## Get started
 
-Get it via jitpack (add the following to your `build.sbt`):
+Get latest release:
+```scala
+libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.1.0"
+```
+
+Or get development snapshots via jitpack:
 ```scala
 resolvers += "jitpack" at "https://jitpack.io"
 libraryDependencies += "com.github.cornerman.sloth" %%% "sloth" % "master-SNAPSHOT"
