@@ -1,5 +1,5 @@
 # sloth
-[![Build Status](https://travis-ci.org/cornerman/sloth.svg?branch=master)](https://travis-ci.org/cornerman/sloth)
+[![Build Status](https://travis-ci.org/cornerman/sloth.svg?branch=master)](https://travis-ci.org/cornerman/sloth) [![Gitter](https://badges.gitter.im/sloth-api/community.svg)](https://gitter.im/sloth-api/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 Type safe RPC in scala
 
