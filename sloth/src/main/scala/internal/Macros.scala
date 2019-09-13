@@ -1,7 +1,6 @@
 package sloth.internal
 
 import scala.reflect.macros.blackbox.Context
-import cats.syntax.either._
 
 object Validator {
   //TODO cats: kleisli? validate?
