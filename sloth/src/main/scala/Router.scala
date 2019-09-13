@@ -7,16 +7,16 @@ import cats.syntax.functor._
 
 class Router[PickleType, Result[_]](apiMap: Router.Map[PickleType, Result]) {
   def apply(request: Request[PickleType]): RouterResult[PickleType, Result] = {
-    def notFoundFailure(path: List[String]): RouterResult[PickleType, Result] =
+    def notFoundFailure: RouterResult[PickleType, Result] =
       RouterResult.Failure(None, ServerFailure.PathNotFound(request.path))
 
     request.path match {
       case apiName :: methodName :: Nil =>
         val function = apiMap.get(apiName).flatMap(_.get(methodName))
-        function.fold[RouterResult[PickleType, Result]](notFoundFailure(request.path)) { f =>
+        function.fold[RouterResult[PickleType, Result]](notFoundFailure) { f =>
           f(request.payload)
         }
-      case _ => notFoundFailure(request.path)
+      case _ => notFoundFailure
     }
   }
 
