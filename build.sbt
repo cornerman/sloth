@@ -2,8 +2,8 @@ organization in Global := "com.github.cornerman"
 version in Global := "0.1.1-SNAPSHOT"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.8",
-  crossScalaVersions := Seq("2.11.12", "2.12.8"),
+  scalaVersion := "2.12.10",
+  crossScalaVersions := Seq("2.12.10", "2.13.0"),
   publishTo := sonatypePublishTo.value,
 
   scalacOptions ++=
@@ -15,18 +15,19 @@ lazy val commonSettings = Seq(
     "-language:_" ::
     "-Xfuture" ::
     "-Xlint" ::
-    "-Ypartial-unification" ::
-    "-Yno-adapted-args" ::
-    "-Ywarn-infer-any" ::
     "-Ywarn-value-discard" ::
-    "-Ywarn-nullary-override" ::
-    "-Ywarn-nullary-unit" ::
+    "-Ywarn-extra-implicit" ::
+    "-Ywarn-unused" ::
     Nil,
 
   scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, 12)) =>
-        "-Ywarn-extra-implicit" ::
+        "-Ywarn-nullary-override" ::
+        "-Ywarn-nullary-unit" ::
+        "-Ywarn-infer-any" ::
+        "-Yno-adapted-args" ::
+        "-Ypartial-unification" ::
         Nil
       case _ =>
         Nil

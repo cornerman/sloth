@@ -2,7 +2,6 @@ package sloth.internal
 
 import scala.reflect.macros.blackbox.Context
 import cats.syntax.either._
-import collection.breakOut
 
 object Validator {
   //TODO cats: kleisli? validate?
@@ -252,7 +251,7 @@ object ChecksumMacro {
       val params = paramsOfType(method)
 
       MethodSignature(name, params, resultType)
-    }(breakOut)
+    }.toSet
 
     val name = t.traitPathPart(traitTag.tpe)
     val apiSignature = ApiSignature(name, dataMethods)
