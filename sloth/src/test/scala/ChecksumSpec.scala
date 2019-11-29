@@ -2,8 +2,10 @@ package test.sloth
 
 import org.scalatest._
 import sloth.ChecksumCalculator._
+import org.scalatest.freespec.AsyncFreeSpec
+import org.scalatest.matchers.must.Matchers
 
-class ChecksumSpec extends AsyncFreeSpec with MustMatchers {
+class ChecksumSpec extends AsyncFreeSpec with Matchers {
   "same" in {
     trait Api {
       def pieksen: Boolean
