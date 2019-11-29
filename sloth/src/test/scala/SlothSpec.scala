@@ -9,6 +9,8 @@ import cats.implicits._
 import chameleon.ext.boopickle._
 import boopickle.Default._
 import java.nio.ByteBuffer
+import org.scalatest.freespec.AsyncFreeSpec
+import org.scalatest.matchers.must.Matchers
 // import chameleon.ext.circe._
 // import io.circe._, io.circe.syntax._, io.circe.generic.auto._
 
@@ -56,7 +58,7 @@ object ApiImplFunResponse extends Api[ApiResultFun] {
   def multi(a: Int)(b: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + b + i))
 }
 
-class SlothSpec extends AsyncFreeSpec with MustMatchers {
+class SlothSpec extends AsyncFreeSpec with Matchers {
   import cats.derived.auto.functor._
 
   "run simple" in {

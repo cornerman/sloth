@@ -9,10 +9,12 @@ import chameleon._
 import chameleon.ext.boopickle._
 import boopickle.Default._
 import java.nio.ByteBuffer
+import org.scalatest.freespec.AnyFreeSpec
+import org.scalatest.matchers.must.Matchers
 
 case class Argument(value: Int)
 
-class ImplsSpec extends FreeSpec with MustMatchers {
+class ImplsSpec extends AnyFreeSpec with Matchers {
   "server impl" - {
     import RouterResult._
     import sloth.internal.RouterImpl
