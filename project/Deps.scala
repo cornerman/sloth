@@ -6,7 +6,7 @@ object Deps {
   import Def.{setting => dep}
 
   val scalaReflect = dep("org.scala-lang" % "scala-reflect")
-  val cats = dep("org.typelevel" %%% "cats-core" % "2.1.0")
+  val cats = dep("org.typelevel" %%% "cats-core" % "2.1.1")
   val chameleon = dep("com.github.cornerman" %%% "chameleon" % "0.2.0")
 
   val scalaTest = dep("org.scalatest" %%% "scalatest" % "3.1.1")
