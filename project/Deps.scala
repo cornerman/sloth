@@ -13,7 +13,7 @@ object Deps {
   val kittens = dep("org.typelevel" %%% "kittens" % "2.0.0")
   val boopickle = dep("io.suzaku" %%% "boopickle" % "1.3.1")
   val circe = new {
-    private val version = "0.12.1"
+    private val version = "0.13.0"
     val core = dep("io.circe" %%% "circe-core" % version)
     val generic = dep("io.circe" %%% "circe-generic" % version)
     val parser = dep("io.circe" %%% "circe-parser" % version)
