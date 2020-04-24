@@ -6,17 +6,14 @@ import scala.util.control.NonFatal
 import sloth._
 import cats.implicits._
 
-import chameleon.ext.boopickle._
-import boopickle.Default._
 import java.nio.ByteBuffer
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.must.Matchers
-// import chameleon.ext.circe._
-// import io.circe._, io.circe.syntax._, io.circe.generic.auto._
+import chameleon.ext.circe._
+import io.circe._, io.circe.syntax._, io.circe.generic.auto._
 
 object Pickling {
-  type PickleType = ByteBuffer
-  // type PickleType = String
+  type PickleType = String
 }
 import Pickling._
 

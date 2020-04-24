@@ -60,7 +60,6 @@ lazy val sloth = crossProject(JSPlatform, JVMPlatform)
       Deps.chameleon.value ::
 
       Deps.kittens.value % Test ::
-      Deps.boopickle.value % Test ::
       Deps.circe.core.value % Test ::
       Deps.circe.generic.value % Test ::
       Deps.circe.parser.value % Test ::
