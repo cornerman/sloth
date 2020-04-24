@@ -49,7 +49,8 @@ lazy val root = (project in file("."))
     skip in publish := true
   )
 
-lazy val sloth = crossProject.crossType(CrossType.Pure)
+lazy val sloth = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
   .settings(commonSettings)
   .settings(
     name := "sloth",
