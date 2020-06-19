@@ -6,11 +6,12 @@ import sloth._
 import cats._
 import cats.implicits._
 import chameleon._
-import chameleon.ext.boopickle._
-import boopickle.Default._
-import java.nio.ByteBuffer
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
+import chameleon.ext.circe._
+import io.circe._, io.circe.syntax._, io.circe.generic.auto._
+
+import Pickling._
 
 case class Argument(value: Int)
 
@@ -20,22 +21,22 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
     import sloth.internal.RouterImpl
 
     "works" in {
-      val impl = new RouterImpl[ByteBuffer, Id]
+      val impl = new RouterImpl[PickleType, Id]
 
       val argument = Argument(1)
-      val pickledInput = Serializer[Argument, ByteBuffer].serialize(argument)
+      val pickledInput = Serializer[Argument, PickleType].serialize(argument)
       val resultValue = "Argument(1)"
-      val pickledResult = Serializer[String, ByteBuffer].serialize(resultValue)
+      val pickledResult = Serializer[String, PickleType].serialize(resultValue)
       val result = impl.execute[Argument, String]("api" :: "f" :: Nil, pickledInput)(_.toString)
 
-      result mustEqual Success[ByteBuffer, Id](argument, Value(resultValue, pickledResult))
+      result mustEqual Success[PickleType, Id](argument, Value(resultValue, pickledResult))
     }
 
     "catch exception" in {
-      val impl = new RouterImpl[ByteBuffer, Id]
+      val impl = new RouterImpl[PickleType, Id]
 
       val argument = Argument(1)
-      val pickledInput = Serializer[Argument, ByteBuffer].serialize(argument)
+      val pickledInput = Serializer[Argument, PickleType].serialize(argument)
       val exception = new Exception("meh")
       val result = impl.execute[Argument, String]("api" :: "f" :: Nil, pickledInput)(_ => throw exception)
 
@@ -49,8 +50,8 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
     type EitherResult[T] = Either[ClientFailure, T]
 
     "works" in {
-      val successTransport = RequestTransport[ByteBuffer, EitherResult](request => Right(request.payload))
-      val client = Client[ByteBuffer, EitherResult, ClientFailure](successTransport)
+      val successTransport = RequestTransport[PickleType, EitherResult](request => Right(request.payload))
+      val client = Client[PickleType, EitherResult, ClientFailure](successTransport)
       val impl = new ClientImpl(client)
 
       val argument = Argument(1)
@@ -61,8 +62,8 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
 
     "catch exception" in {
       val exception = new Exception("meh")
-      val failureTransport = RequestTransport[ByteBuffer, EitherResult](_ => throw exception)
-      val client = Client[ByteBuffer, EitherResult, ClientFailure](failureTransport)
+      val failureTransport = RequestTransport[PickleType, EitherResult](_ => throw exception)
+      val client = Client[PickleType, EitherResult, ClientFailure](failureTransport)
       val impl = new ClientImpl(client)
 
       val argument = Argument(1)
