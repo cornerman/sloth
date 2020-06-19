@@ -1,3 +1,6 @@
+// shadow sbt-scalajs' crossProject and CrossType from Scala.js 0.6.x
+import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
+
 organization in Global := "com.github.cornerman"
 version in Global := "0.2.1-SNAPSHOT"
 
@@ -46,7 +49,8 @@ lazy val root = (project in file("."))
     skip in publish := true
   )
 
-lazy val sloth = crossProject.crossType(CrossType.Pure)
+lazy val sloth = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
   .settings(commonSettings)
   .settings(
     name := "sloth",
@@ -56,7 +60,6 @@ lazy val sloth = crossProject.crossType(CrossType.Pure)
       Deps.chameleon.value ::
 
       Deps.kittens.value % Test ::
-      Deps.boopickle.value % Test ::
       Deps.circe.core.value % Test ::
       Deps.circe.generic.value % Test ::
       Deps.circe.parser.value % Test ::
