@@ -2,7 +2,7 @@
 import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
 organization in Global := "com.github.cornerman"
-version in Global := "0.3.0"
+version in Global := "0.3.1-SNAPSHOT"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.10",
