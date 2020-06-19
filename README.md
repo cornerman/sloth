@@ -14,7 +14,7 @@ This library is inspired by [autowire](https://github.com/lihaoyi/autowire). Som
 
 Get latest release:
 ```scala
-libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.2.0"
+libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.3.0"
 ```
 
 Or get development snapshots via jitpack:
