@@ -4,7 +4,6 @@ import org.scalatest._
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import sloth._
-import cats.implicits._
 
 import java.nio.ByteBuffer
 import org.scalatest.freespec.AsyncFreeSpec
