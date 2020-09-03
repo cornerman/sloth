@@ -4,7 +4,6 @@ import org.scalatest._
 
 import sloth._
 import cats._
-import cats.implicits._
 import chameleon._
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
