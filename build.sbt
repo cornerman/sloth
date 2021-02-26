@@ -5,8 +5,8 @@ organization in Global := "com.github.cornerman"
 version in Global := "0.3.1-SNAPSHOT"
 
 lazy val commonSettings = Seq(
-  scalaVersion := "2.12.10",
-  crossScalaVersions := Seq("2.12.10", "2.13.0"),
+  scalaVersion := "2.12.13",
+  crossScalaVersions := Seq("2.12.13", "2.13.0"),
   publishTo := sonatypePublishTo.value,
 
   scalacOptions ++=
