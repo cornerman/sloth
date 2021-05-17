@@ -113,7 +113,7 @@ object TraitMacro {
       val parameters =  t.paramsAsValDefs(method)
       val paramsType = t.paramsType(method)
       val paramListValue = t.wrapAsParamsType(method)
-      val innerReturnType = method.finalResultType.typeArgs.head
+      val innerReturnType = method.finalResultType.typeArgs.last
 
       q"""
         override def ${symbol.name}(...$parameters): ${method.finalResultType} = {
@@ -149,7 +149,7 @@ object RouterMacro {
       val methodPathPart = t.methodPathPart(symbol)
       val paramsType = t.paramsType(method)
       val argParams = t.objectToParams(method, TermName("args"))
-      val innerReturnType = method.finalResultType.typeArgs.head
+      val innerReturnType = method.finalResultType.typeArgs.last
       val payloadFunction =
         q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsType}, $innerReturnType](payload) { args =>
           value.${symbol.name.toTermName}(...$argParams)
