@@ -6,7 +6,7 @@ version in Global := "0.3.1-SNAPSHOT"
 
 lazy val commonSettings = Seq(
   scalaVersion := "2.12.15",
-  crossScalaVersions := Seq("2.12.15", "2.13.0"),
+  crossScalaVersions := Seq("2.12.15", "2.13.6"),
   publishTo := sonatypePublishTo.value,
 
   scalacOptions ++=
