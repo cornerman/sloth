@@ -37,7 +37,7 @@ lazy val commonSettings = Seq(
     }
   },
 
-  addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.10.3")
+  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
 )
 
 enablePlugins(ScalaJSPlugin)
