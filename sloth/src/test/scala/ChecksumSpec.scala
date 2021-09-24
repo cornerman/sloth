@@ -1,10 +1,10 @@
 package test.sloth
 
-import org.scalatest._
 import sloth.ChecksumCalculator._
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.must.Matchers
 
+@annotation.nowarn
 class ChecksumSpec extends AsyncFreeSpec with Matchers {
   "same" in {
     trait Api {

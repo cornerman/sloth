@@ -1,15 +1,13 @@
 package test.sloth
 
-import org.scalatest._
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import sloth._
 
-import java.nio.ByteBuffer
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.must.Matchers
 import chameleon.ext.circe._
-import io.circe._, io.circe.syntax._, io.circe.generic.auto._
+import io.circe.generic.auto._
 
 object Pickling {
   type PickleType = String
@@ -61,7 +59,7 @@ object TypeHelper { type ApiResultFun[T] = Int => ApiResult[T] }
 import TypeHelper._
 object ApiImplFunResponse extends Api[ApiResultFun] {
   def simple: ApiResultFun[Int] = i => ApiResult("peter", Future.successful(i))
-  def single(a: Int): ApiResultFun[Int] = i => ApiResult("peter", Future.successful(a))
+  def single(a: Int): ApiResultFun[Int] = _ => ApiResult("peter", Future.successful(a))
   def fun(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
   def fun2(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
   def multi(a: Int)(b: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + b + i))

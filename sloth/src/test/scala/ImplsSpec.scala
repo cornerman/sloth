@@ -1,14 +1,12 @@
 package test.sloth
 
-import org.scalatest._
-
 import sloth._
 import cats._
 import chameleon._
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import chameleon.ext.circe._
-import io.circe._, io.circe.syntax._, io.circe.generic.auto._
+import io.circe.generic.auto._
 
 import Pickling._
 
