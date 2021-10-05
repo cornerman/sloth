@@ -12,7 +12,7 @@ object Deps {
   val scalaTest = dep("org.scalatest" %%% "scalatest" % "3.2.10")
   val kittens = dep("org.typelevel" %%% "kittens" % "2.3.2")
   val circe = new {
-    private val version = "0.13.0"
+    private val version = "0.14.1"
     val core = dep("io.circe" %%% "circe-core" % version)
     val generic = dep("io.circe" %%% "circe-generic" % version)
     val parser = dep("io.circe" %%% "circe-parser" % version)
