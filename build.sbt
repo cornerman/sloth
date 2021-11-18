@@ -1,14 +1,33 @@
 // shadow sbt-scalajs' crossProject and CrossType from Scala.js 0.6.x
 import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
-organization in Global := "com.github.cornerman"
-version in Global := "0.3.1-SNAPSHOT"
+inThisBuild(Seq(
+  organization := "com.github.cornerman",
 
-lazy val commonSettings = Seq(
   scalaVersion := "2.12.15",
   crossScalaVersions := Seq("2.12.15", "2.13.7"),
-  publishTo := sonatypePublishTo.value,
 
+  licenses := Seq("MIT License" -> url("https://opensource.org/licenses/MIT")),
+
+  homepage := Some(url("https://github.com/cornerman/sloth")),
+
+  scmInfo := Some(ScmInfo(
+    url("https://github.com/cornerman/sloth"),
+    "scm:git:git@github.com:cornerman/sloth.git",
+    Some("scm:git:git@github.com:cornerman/sloth.git"))
+  ),
+
+  pomExtra :=
+    <developers>
+      <developer>
+        <id>jkaroff</id>
+        <name>Johannes Karoff</name>
+        <url>https://github.com/cornerman</url>
+      </developer>
+    </developers>
+))
+
+lazy val commonSettings = Seq(
   addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
 )
 
@@ -41,25 +60,3 @@ lazy val sloth = crossProject(JSPlatform, JVMPlatform)
 
 lazy val slothJS = sloth.js
 lazy val slothJVM = sloth.jvm
-
-
-pomExtra in Global := {
-  <url>https://github.com/cornerman/sloth</url>
-  <licenses>
-    <license>
-      <name>The MIT License (MIT)</name>
-      <url>http://opensource.org/licenses/MIT</url>
-    </license>
-  </licenses>
-  <scm>
-    <url>https://github.com/cornerman/sloth</url>
-    <connection>scm:git:git@github.com:cornerman/sloth.git</connection>
-  </scm>
-  <developers>
-    <developer>
-      <id>jkaroff</id>
-      <name>Johannes Karoff</name>
-      <url>https://github.com/cornerman</url>
-    </developer>
-  </developers>
-}
