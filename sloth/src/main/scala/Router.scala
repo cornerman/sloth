@@ -22,6 +22,7 @@ class Router[PickleType, Result[_]](apiMap: Router.Map[PickleType, Result]) {
 
   def route[T](value: T)(implicit functor: Functor[Result]): Router[PickleType, Result] = macro RouterMacro.impl[T, PickleType, Result]
 
+  @annotation.nowarn("cat=deprecation") // the alternative .concat is not available in scala 2.12
   def orElse(name: String, value: Router.MapValue[PickleType, Result]): Router[PickleType, Result] = new Router(apiMap + (name -> value))
 }
 object Router {
