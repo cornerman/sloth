@@ -134,7 +134,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
 
     Frontend.api.fun2(1, "AAAA")
     Frontend.api.multi(11)(3)
-    Frontend.api.fun(1).value.map(_.right.get mustEqual 1)
+    Frontend.api.fun(1).value.map(_ mustEqual Right(1))
   }
 
  "run different result types with fun" in {
