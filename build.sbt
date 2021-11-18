@@ -56,6 +56,14 @@ lazy val sloth = crossProject(JSPlatform, JVMPlatform)
       Deps.circe.parser.value % Test ::
       Deps.scalaTest.value % Test ::
       Nil
+  ).jsSettings(
+      scalacOptions += {
+        val githubRepo    = "cornerman/sloth"
+        val local         = baseDirectory.value.toURI
+        val subProjectDir = baseDirectory.value.getName
+        val remote        = s"https://raw.githubusercontent.com/${githubRepo}/${git.gitHeadCommit.value.get}"
+        s"-P:scalajs:mapSourceURI:$local->$remote/${subProjectDir}/"
+      },
   )
 
 lazy val slothJS = sloth.js
