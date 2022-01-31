@@ -48,7 +48,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
 
     "works" in {
       val successTransport = RequestTransport[PickleType, EitherResult](request => Right(request.payload))
-      val client = Client[PickleType, EitherResult, ClientFailure](successTransport)
+      val client = Client[PickleType, EitherResult](successTransport)
       val impl = new ClientImpl(client)
 
       val argument = Argument(1)
@@ -60,7 +60,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
     "catch exception" in {
       val exception = new Exception("meh")
       val failureTransport = RequestTransport[PickleType, EitherResult](_ => throw exception)
-      val client = Client[PickleType, EitherResult, ClientFailure](failureTransport)
+      val client = Client[PickleType, EitherResult](failureTransport)
       val impl = new ClientImpl(client)
 
       val argument = Argument(1)

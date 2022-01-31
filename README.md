@@ -77,7 +77,7 @@ object Transport extends RequestTransport[PickleType, Future] {
         }
 }
 
-val client = Client[PickleType, Future, ClientException](Transport)
+val client = Client[PickleType, Future](Transport)
 val api: Api = client.wire[Api]
 ```
 
@@ -114,11 +114,11 @@ val router = Router[ByteBuffer, ServerResult]
     .route[Api[ServerResult]](ApiImpl)
 ```
 
-In your client, you can use any `cats.MonadError` that can capture a `ClientFailure` (see `ClientFailureConvert` for using your own failure type):
+In your client, you can use any `cats.MonadError` that can capture a `Throwable` or `ClientFailure` (see `ClientFailureConvert` / `ClientFailureHandler` for more customization):
 ```scala
 type ClientResult[T] = Either[ClientFailure, T]
 
-val client = Client[PickleType, ClientResult, ClientFailure](Transport)
+val client = Client[PickleType, ClientResult](Transport)
 val api: Api = client.wire[Api[ClientResult]]
 ```
 
@@ -188,11 +188,11 @@ trait Api {
 
 For each declared method in this trait (in this case `fun`):
 * Calculate method path: `List("Api", "fun")` (`PathName` annotations on the trait or method are taken into account).
-* Serialize the method parameters as tuples.
+* Serialize the method parameters as a tuple: `(a, b, c)`.
 
 ### Server
 
-When calling `router.route[Api](impl)`, a macro generates a function that maps a method path and a pickled case class to a pickled result. This basically boils down to:
+When calling `router.route[Api](impl)`, a macro generates a function that maps a method path and the pickled arguments to a pickled result. This basically boils down to:
 
 ```scala
 HashMap("Api" -> HashMap("fun" -> { payload =>
