@@ -87,7 +87,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
         }
       }
 
-      val client = Client[PickleType, Future, ClientException](Transport)
+      val client = Client[PickleType, Future](Transport)
       val api = client.wire[Api[Future]]
       val singleApi = client.wire[SingleApi]
       val emptyApi = client.wire[EmptyApi]
@@ -107,9 +107,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
     case class SlothServerError(failure: ServerFailure) extends ApiError
     case class UnexpectedError(msg: String) extends ApiError
 
-    implicit def clientFailureConvert = new ClientFailureConvert[ApiError] {
-      def convert(failure: ClientFailure) = SlothClientError(failure)
-    }
+    implicit def clientFailureConvert: ClientFailureConvert[ApiError] = SlothClientError(_)
 
     type ClientResult[T] = EitherT[Future, ApiError, T]
 
@@ -128,7 +126,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
           })
       }
 
-      val client = Client[PickleType, ClientResult, ApiError](Transport)
+      val client = Client[PickleType, ClientResult](Transport)
       val api = client.wire[Api[ClientResult]]
     }
 
@@ -150,7 +148,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
           Backend.router(request).toEither.fold(err => Future.failed(new Exception(err.toString)), _(10).result)
       }
 
-      val client = Client[PickleType, Future, ClientException](Transport)
+      val client = Client[PickleType, Future](Transport)
       val api = client.wire[Api[Future]]
     }
 
