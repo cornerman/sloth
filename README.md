@@ -7,7 +7,7 @@ Sloth is essentially a pair of macros (server and client) which takes an API def
 
 This library is inspired by [autowire](https://github.com/lihaoyi/autowire). Some differences:
 * No macro application on the call-site in the client (`.call()`), just one macro for creating an instance of an API trait
-* Return types of Api traits are not restricted to `Future`. You can use any higher-kinded generic return types (`cats.MonadError` in client, `cats.Functor` in server)
+* Return types of Api traits are not restricted to `Future`. You can use any higher-kinded generic return types (`cats.Functor` in server, `cats.MonadError` (or Kleisli with `cats.ApplicativeError`) in client)
 
 ## Get started
 
@@ -114,11 +114,19 @@ val router = Router[ByteBuffer, ServerResult]
     .route[Api[ServerResult]](ApiImpl)
 ```
 
-In your client, you can use any `cats.MonadError` that can capture a `Throwable` or `ClientFailure` (see `ClientFailureConvert` / `ClientFailureHandler` for more customization):
+In your client, you can use any `cats.MonadError` that can capture a `Throwable` or `ClientFailure` (see `ClientFailureConvert` / `ClientHandler` for more customization):
 ```scala
 type ClientResult[T] = Either[ClientFailure, T]
 
 val client = Client[PickleType, ClientResult](Transport)
+val api: Api = client.wire[Api[ClientResult]]
+```
+
+It is also possible to have a contravariant return type in your client. You can use `Kleisli` with any `cats.ApplicativeError` that can capture a `Throwable` or `ClientFailure` (see `ClientFailureConvert` / `ClientContraHandler` for more customization):
+```scala
+type ClientResult[T] = T => Either[ClientFailure, Unit]
+
+val client = Client.contra[PickleType, ClientResult](Transport)
 val api: Api = client.wire[Api[ClientResult]]
 ```
 

@@ -99,8 +99,9 @@ object Translator {
 }
 
 object TraitMacro {
-  def impl[Trait, PickleType, Result[_]]
+  def implBase[Trait, PickleType, Result[_]]
     (c: Context)
+    (impl: c.Tree)
     (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = Translator(c) { t =>
     import c.universe._
 
@@ -125,13 +126,27 @@ object TraitMacro {
     val methodImpls = if (methodImplList.isEmpty) List(EmptyTree) else methodImplList
 
     q"""
-      val impl = new ${t.internalPkg}.ClientImpl(${c.prefix})
+      val impl = $impl
 
       new ${traitTag.tpe.finalResultType} {
         ..$methodImpls
       }
     """
   }
+
+  def impl[Trait, PickleType, Result[_]]
+    (c: Context)
+    (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = {
+      import c.universe._
+      implBase[Trait, PickleType, Result](c)(q"new _root_.sloth.internal.ClientImpl(${c.prefix})")
+    }
+
+  def implContra[Trait, PickleType, Result[_]]
+    (c: Context)
+    (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = {
+      import c.universe._
+      implBase[Trait, PickleType, Result](c)(q"new _root_.sloth.internal.ClientContraImpl(${c.prefix})")
+    }
 }
 
 object RouterMacro {

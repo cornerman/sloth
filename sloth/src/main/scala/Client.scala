@@ -2,17 +2,26 @@ package sloth
 
 import sloth.internal.TraitMacro
 
-//TODO: move implicits to wire method
-class Client[PickleType, Result[_]](
+class ClientCo[PickleType, Result[_]](
   private[sloth] val transport: RequestTransport[PickleType, Result],
   private[sloth] val logger: LogHandler[Result]
-)(implicit private[sloth] val failureHandler: ClientFailureHandler[PickleType, Result]) {
+)(implicit private[sloth] val failureHandler: ClientHandler[Result]) {
 
   def wire[T]: T = macro TraitMacro.impl[T, PickleType, Result]
 }
 
+class ClientContra[PickleType, Result[_]](
+  private[sloth] val transport: RequestTransport[PickleType, Result],
+  private[sloth] val logger: LogHandler[Result]
+)(implicit private[sloth] val failureHandler: ClientContraHandler[Result]) {
+
+  def wire[T]: T = macro TraitMacro.implContra[T, PickleType, Result]
+}
+
 object Client {
-  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit failureHandler: ClientFailureHandler[PickleType, Result]) = new Client[PickleType, Result](transport, logger)
+  def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit failureHandler: ClientHandler[Result]) = new ClientCo[PickleType, Result](transport, logger)
+
+  def contra[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit failureHandler: ClientContraHandler[Result]) = new ClientContra[PickleType, Result](transport, logger)
 }
 
 trait RequestTransport[PickleType, Result[_]] { transport =>
