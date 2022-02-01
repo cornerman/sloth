@@ -69,4 +69,42 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       result mustEqual Left(ClientFailure.TransportError(exception))
     }
   }
+
+  "client contra impl" - {
+    import sloth.internal.ClientContraImpl
+
+    type EitherResult[T] = T => Either[ClientFailure, Unit]
+
+    "works" in {
+      val receivedRequests = collection.mutable.ArrayBuffer.empty[Argument]
+      val receivedParameters = collection.mutable.ArrayBuffer.empty[Argument]
+      val successTransport = RequestTransport[PickleType, EitherResult] { request => parameter =>
+        receivedRequests += Deserializer[Argument, PickleType].deserialize(request.payload).toOption.get
+        receivedParameters += Deserializer[Argument, PickleType].deserialize(parameter).toOption.get
+        Right(())
+      }
+      val client = Client.contra[PickleType, EitherResult](successTransport)
+      val impl = new ClientContraImpl(client)
+
+      val argument = Argument(1)
+      val resultf = impl.execute[Argument, Argument]("api" :: "f" :: Nil, argument)
+
+      resultf(Argument(2)) mustEqual Right(())
+
+      receivedRequests mustEqual List(Argument(1))
+      receivedParameters mustEqual List(Argument(2))
+    }
+
+    "catch exception" in {
+      val exception = new Exception("meh")
+      val failureTransport = RequestTransport[PickleType, EitherResult](_ => throw exception)
+      val client = Client.contra[PickleType, EitherResult](failureTransport)
+      val impl = new ClientContraImpl(client)
+
+      val argument = Argument(1)
+      val resultf = impl.execute[Argument, Double]("api" :: "f" :: Nil, argument)
+
+      resultf(2.0) mustEqual Left(ClientFailure.TransportError(exception))
+    }
+  }
 }
