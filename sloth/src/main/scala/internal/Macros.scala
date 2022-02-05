@@ -89,6 +89,17 @@ class Translator[C <: Context](val c: C) {
     case Nil => q"()"
     case list => q"""(..${list.map(p => q"${p.name.toTermName}")})"""
   }
+
+  def findIndexOfPlaceholderType(tpe: Type): Int = tpe.typeParams match {
+    case typeParam :: _ => tpe.resultType.typeArgs.indexWhere(argTpe => typeParam == argTpe.typeSymbol)
+    case _ => -1
+  }
+
+  def getInnerTypeOutOfReturnType(tpe: Type, returnType: Type): Type = {
+    val placeholderIndex = findIndexOfPlaceholderType(tpe)
+    if (placeholderIndex >= 0 && tpe.resultType.typeConstructor =:= returnType.typeConstructor) returnType.typeArgs(placeholderIndex)
+    else returnType.typeArgs.last
+  }
 }
 
 object Translator {
@@ -114,7 +125,7 @@ object TraitMacro {
       val parameters =  t.paramsAsValDefs(method)
       val paramsType = t.paramsType(method)
       val paramListValue = t.wrapAsParamsType(method)
-      val innerReturnType = method.finalResultType.typeArgs.last
+      val innerReturnType = t.getInnerTypeOutOfReturnType(resultTag.tpe, method.finalResultType)
 
       q"""
         override def ${symbol.name}(...$parameters): ${method.finalResultType} = {
@@ -164,7 +175,7 @@ object RouterMacro {
       val methodPathPart = t.methodPathPart(symbol)
       val paramsType = t.paramsType(method)
       val argParams = t.objectToParams(method, TermName("args"))
-      val innerReturnType = method.finalResultType.typeArgs.last
+      val innerReturnType = t.getInnerTypeOutOfReturnType(resultTag.tpe, method.finalResultType)
       val payloadFunction =
         q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsType}, $innerReturnType](payload) { args =>
           value.${symbol.name.toTermName}(...$argParams)
