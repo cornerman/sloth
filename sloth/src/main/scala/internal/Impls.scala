@@ -7,13 +7,13 @@ import cats.syntax.all._
 
 import scala.util.{Success, Failure, Try}
 
-class RouterImpl[PickleType, Result[_] : Functor] {
-  def execute[T, R](arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): RouterResult[PickleType, Result] = {
+class RouterImpl[PickleType, Result[_] : Functor](router: Router[PickleType, Result]) {
+  def execute[T, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): RouterResult[PickleType, Result] = {
     deserializer.deserialize(arguments) match {
       case Right(arguments) =>
         Try(call(arguments)) match {
           case Success(result) =>
-            RouterResult.Success(arguments, result.map { value =>
+            RouterResult.Success(arguments, router.logger.logRequest[R](path, arguments, result).map { value =>
               RouterResult.Value(value, serializer.serialize(value))
             })
           case Failure(err) => RouterResult.Failure[PickleType](Some(arguments), ServerFailure.HandlerError(err))

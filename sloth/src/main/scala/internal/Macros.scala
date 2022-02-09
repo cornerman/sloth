@@ -173,11 +173,12 @@ object RouterMacro {
     val traitPathPart = t.traitPathPart(traitTag.tpe)
     val methodTuples = validMethods.map { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
+      val path = traitPathPart :: methodPathPart :: Nil
       val paramsType = t.paramsType(method)
       val argParams = t.objectToParams(method, TermName("args"))
       val innerReturnType = t.getInnerTypeOutOfReturnType(resultTag.tpe, method.finalResultType)
       val payloadFunction =
-        q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsType}, $innerReturnType](payload) { args =>
+        q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsType}, $innerReturnType]($path, payload) { args =>
           value.${symbol.name.toTermName}(...$argParams)
         }"""
 
@@ -186,9 +187,10 @@ object RouterMacro {
 
     q"""
       val value = $value
-      val impl = new ${t.internalPkg}.RouterImpl[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}]()($functor)
+      val implRouter = ${c.prefix}
+      val impl = new ${t.internalPkg}.RouterImpl[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}](implRouter)($functor)
 
-      ${c.prefix}.orElse($traitPathPart, scala.collection.mutable.HashMap(..$methodTuples))
+      implRouter.orElse($traitPathPart, scala.collection.mutable.HashMap(..$methodTuples))
 
     """
   }

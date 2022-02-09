@@ -18,24 +18,26 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
     import sloth.internal.RouterImpl
 
     "works" in {
-      val impl = new RouterImpl[PickleType, Id]
+      val router = Router[PickleType, Id]
+      val impl = new RouterImpl[PickleType, Id](router)
 
       val argument = Argument(1)
       val pickledInput = Serializer[Argument, PickleType].serialize(argument)
       val resultValue = "Argument(1)"
       val pickledResult = Serializer[String, PickleType].serialize(resultValue)
-      val result = impl.execute[Argument, String](pickledInput)(_.toString)
+      val result = impl.execute[Argument, String](Nil, pickledInput)(_.toString)
 
       result mustEqual Success[PickleType, Id](argument, Value(resultValue, pickledResult))
     }
 
     "catch exception" in {
-      val impl = new RouterImpl[PickleType, Id]
+      val router = Router[PickleType, Id]
+      val impl = new RouterImpl[PickleType, Id](router)
 
       val argument = Argument(1)
       val pickledInput = Serializer[Argument, PickleType].serialize(argument)
       val exception = new Exception("meh")
-      val result = impl.execute[Argument, String](pickledInput)(_ => throw exception)
+      val result = impl.execute[Argument, String](Nil, pickledInput)(_ => throw exception)
 
       result mustEqual Failure(Some(argument), ServerFailure.HandlerError(exception))
     }

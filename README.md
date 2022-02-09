@@ -157,15 +157,26 @@ router(request).toEither match {
 }
 ```
 
-### Client logging
+### Logging
 
-For logging, you can define a `LogHandler`, which can log each request including the deserialized request and response. Define it when creating the `Client`:
+For logging, you can define a `LogHandler`, which can log each request including the deserialized request and response.
+
+Define it when creating the `Client`:
 ```scala
 object MyLogHandler extends LogHandler[ClientResult[_]] {
   def logRequest[T](path: List[String], argumentObject: Any, result: ClientResult[T]): ClientResult[T] = ???
 }
 
-val client = Client[PickleType, ClientResult, ClientFailure](Transport, MyLogHandler)
+val client = Client[PickleType, ClientResult](Transport, MyLogHandler)
+```
+
+Define it when creating the `Client`:
+```scala
+object MyLogHandler extends LogHandler[ServerResult[_]] {
+  def logRequest[T](path: List[String], argumentObject: Any, result: ServerResult[T]): ServerResult[T] = ???
+}
+
+val router = Router[PickleType, ServerResult](MyLogHandler)
 ```
 
 ### Method overloading
