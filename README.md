@@ -170,7 +170,7 @@ object MyLogHandler extends LogHandler[ClientResult[_]] {
 val client = Client[PickleType, ClientResult](Transport, MyLogHandler)
 ```
 
-Define it when creating the `Client`:
+Define it when creating the `Router`:
 ```scala
 object MyLogHandler extends LogHandler[ServerResult[_]] {
   def logRequest[T](path: List[String], argumentObject: Any, result: ServerResult[T]): ServerResult[T] = ???
