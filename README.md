@@ -7,7 +7,7 @@ Sloth is essentially a pair of macros (server and client) which takes an API def
 
 This library is inspired by [autowire](https://github.com/lihaoyi/autowire). Some differences:
 * No macro application on the call-site in the client (`.call()`), just one macro for creating an instance of an API trait
-* Return types of Api traits are not restricted to `Future`. You can use any higher-kinded generic return types (`cats.Functor` in server, `cats.MonadError` (or Kleisli with `cats.ApplicativeError`) in client)
+* Return types of Api traits are not restricted to `Future`. You can use any higher-kinded generic return types (`cats.Functor` (or `cats.data.Kleisli` with `cats.ApplicativeError`) in server, `cats.MonadError` (or `cats.data.Kleisli` with `cats.ApplicativeError`) in client)
 
 ## Get started
 
@@ -95,16 +95,18 @@ api.fun(1).foreach { num =>
 Sometimes it can be useful to have a different return type on the server and client, you can do so by making your API generic:
 ```scala
 trait Api[F[_]] {
-    def fun(a: Int): F[Int]
+    def fun(a: Int): F[String]
 }
 ```
+
+#### Router
 
 In your server, you can use any `cats.Functor` as `F`, for example:
 ```scala
 type ServerResult[T] = User => T
 
 object ApiImpl extends Api[ServerResult] {
-    def fun(a: Int): User => Int = { user =>
+    def fun(a: Int): User => String = { user =>
         println(s"User: $user")
         a + 1
     }
@@ -114,12 +116,30 @@ val router = Router[ByteBuffer, ServerResult]
     .route[Api[ServerResult]](ApiImpl)
 ```
 
+It is also possible to have a contravariant return type in your server. You can use `Kleisli` with any `cats.ApplicativeError` that can capture a `Throwable` or `ServerFailure` (see `ServerFailureConvert` / `RouterContraHandler` for more customization):
+```scala
+type ServerResult[T] = T => Unit
+
+object ApiImpl extends Api[ServerResult] {
+    def fun(a: Int): Int => String = { int =>
+        println(s"Argument: $a")
+        println(s"Return: $int")
+    }
+}
+
+val router = Router.contra[ByteBuffer, ServerResult]
+    .route[Api[ServerResult]](ApiImpl)
+```
+
+#### Client
+
 In your client, you can use any `cats.MonadError` that can capture a `Throwable` or `ClientFailure` (see `ClientFailureConvert` / `ClientHandler` for more customization):
 ```scala
 type ClientResult[T] = Either[ClientFailure, T]
 
 val client = Client[PickleType, ClientResult](Transport)
 val api: Api = client.wire[Api[ClientResult]]
+api.fun(1)
 ```
 
 It is also possible to have a contravariant return type in your client. You can use `Kleisli` with any `cats.ApplicativeError` that can capture a `Throwable` or `ClientFailure` (see `ClientFailureConvert` / `ClientContraHandler` for more customization):
@@ -128,6 +148,8 @@ type ClientResult[T] = T => Either[ClientFailure, Unit]
 
 val client = Client.contra[PickleType, ClientResult](Transport)
 val api: Api = client.wire[Api[ClientResult]]
+
+api.fun(1)
 ```
 
 ### Multiple routes
@@ -141,17 +163,9 @@ val router = Router[ByteBuffer, Future]
 
 ### Router result
 
-The router in the server returns a `RouterResult[PickleType, Result[_]]` which either returns a result or fails with a `ServerFailure`. Furthermore, it gives access to the deserialized request:
+The router in the server returns an `Either[ServerFailure, Result[PickleType]]`, as the request can either fail or return the serialized result:
 ```scala
 router(request) match {
-    case RouterResult.Success(arguments, result) => println(s"Success (arguments: $arguments): $result")
-    case RouterResult.Failure(arguments, error) => println(s"Error (arguments: $arguments): $error")
-}
-```
-
-Or you can just convert the result to an `Either[ServerFailure, Result[PickleType]]`:
-```scala
-router(request).toEither match {
     case Right(result) => println(s"Success: $result")
     case Left(error) => println(s"Error: $error")
 }

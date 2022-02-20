@@ -1,24 +1,38 @@
 package sloth.internal
 
 import sloth._
-import chameleon._
-import cats.Functor
-import cats.syntax.all._
+import chameleon.{Serializer, Deserializer}
 
 import scala.util.{Success, Failure, Try}
 
-class RouterImpl[PickleType, Result[_] : Functor](router: Router[PickleType, Result]) {
-  def execute[T, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): RouterResult[PickleType, Result] = {
+class RouterImpl[PickleType, Result[_]](router: RouterCo[PickleType, Result]) {
+  def execute[T, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): Either[ServerFailure, Result[PickleType]] = {
     deserializer.deserialize(arguments) match {
       case Right(arguments) =>
         Try(call(arguments)) match {
           case Success(result) =>
-            RouterResult.Success(arguments, router.logger.logRequest[R](path, arguments, result).map { value =>
-              RouterResult.Value(value, serializer.serialize(value))
-            })
-          case Failure(err) => RouterResult.Failure[PickleType](Some(arguments), ServerFailure.HandlerError(err))
+            val routerResult = router.functor.map(router.logger.logRequest[T, R](path, arguments, result))(serializer.serialize)
+            Right(routerResult)
+          case Failure(err) => Left(ServerFailure.HandlerError(err))
         }
-      case Left(err) => RouterResult.Failure[PickleType](None, ServerFailure.DeserializerError(err))
+      case Left(err) => Left(ServerFailure.DeserializerError(err))
+    }
+  }
+}
+
+class RouterContraImpl[PickleType, Result[_]](router: RouterContra[PickleType, Result]) {
+  def execute[T, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializerT: Deserializer[T, PickleType], deserializerR: Deserializer[R, PickleType]): Either[ServerFailure, Result[PickleType]] = {
+    deserializerT.deserialize(arguments) match {
+      case Right(arguments) =>
+        Try(call(arguments)) match {
+          case Success(result) =>
+            val routerResult = router.routerHandler.eitherContramap[R, PickleType](router.logger.logRequest[T, R](path, arguments, result)) { serialized =>
+                deserializerR.deserialize(serialized).left.map(ServerFailure.DeserializerError(_))
+              }
+            Right(routerResult)
+          case Failure(err) => Left(ServerFailure.HandlerError(err))
+        }
+      case Left(err) => Left(ServerFailure.DeserializerError(err))
     }
   }
 }
@@ -38,7 +52,7 @@ class ClientImpl[PickleType, Result[_]](client: ClientCo[PickleType, Result]) {
       case Failure(t) => client.failureHandler.raiseFailure(ClientFailure.TransportError(t))
     }
 
-    client.logger.logRequest[R](path, arguments, result)
+    client.logger.logRequest[T, R](path, arguments, result)
   }
 }
 
@@ -52,6 +66,6 @@ class ClientContraImpl[PickleType, Result[_]](client: ClientContra[PickleType, R
       case Failure(t) => client.failureHandler.raiseFailure(ClientFailure.TransportError(t))
     }
 
-    client.logger.logRequest[R](path, arguments, result)
+    client.logger.logRequest[T, R](path, arguments, result)
   }
 }
