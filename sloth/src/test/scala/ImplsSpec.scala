@@ -14,7 +14,6 @@ case class Argument(value: Int)
 
 class ImplsSpec extends AnyFreeSpec with Matchers {
   "server impl" - {
-    import RouterResult._
     import sloth.internal.RouterImpl
 
     "works" in {
@@ -23,11 +22,10 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
 
       val argument = Argument(1)
       val pickledInput = Serializer[Argument, PickleType].serialize(argument)
-      val resultValue = "Argument(1)"
-      val pickledResult = Serializer[String, PickleType].serialize(resultValue)
+      val resultValue = "\"Argument(1)\""
       val result = impl.execute[Argument, String](Nil, pickledInput)(_.toString)
 
-      result mustEqual Success[PickleType, Id](argument, Value(resultValue, pickledResult))
+      result mustEqual Right(resultValue)
     }
 
     "catch exception" in {
@@ -39,7 +37,47 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       val exception = new Exception("meh")
       val result = impl.execute[Argument, String](Nil, pickledInput)(_ => throw exception)
 
-      result mustEqual Failure(Some(argument), ServerFailure.HandlerError(exception))
+      result mustEqual Left(ServerFailure.HandlerError(exception))
+    }
+  }
+
+  "server contra impl" - {
+    import sloth.internal.RouterContraImpl
+
+    "works" in {
+      val router = Router.contra[PickleType, * => Either[ServerFailure, Unit]]
+      val impl = new RouterContraImpl[PickleType, * => Either[ServerFailure, Unit]](router)
+
+      val argument = Argument(1)
+      val pickledInput = Serializer[Argument, PickleType].serialize(argument)
+
+      val receivedParameters = collection.mutable.ArrayBuffer.empty[Argument]
+      val receivedStrings = collection.mutable.ArrayBuffer.empty[String]
+      val result = impl.execute[Argument, String](Nil, pickledInput) { argument =>
+        receivedParameters += argument
+
+        { string =>
+          receivedStrings += string
+          Right(())
+        }
+      }
+
+      result.isRight mustEqual true
+      result.toOption.get("\"test\"") mustEqual Right(())
+      receivedParameters mustEqual List(argument)
+      receivedStrings mustEqual List("test")
+    }
+
+    "catch exception" in {
+      val router = Router.contra[PickleType, * => Either[ServerFailure, Unit]]
+      val impl = new RouterContraImpl[PickleType, * => Either[ServerFailure, Unit]](router)
+
+      val argument = Argument(1)
+      val pickledInput = Serializer[Argument, PickleType].serialize(argument)
+      val exception = new Exception("meh")
+      val result = impl.execute[Argument, String](Nil, pickledInput)(_ => throw exception)
+
+      result mustEqual Left(ServerFailure.HandlerError(exception))
     }
   }
 

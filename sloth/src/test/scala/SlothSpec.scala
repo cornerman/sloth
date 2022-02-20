@@ -80,7 +80,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] = {
           println(request)
-          Backend.router(request).toEither match {
+          Backend.router(request) match {
             case Right(result) => result
             case Left(err) => Future.failed(new Exception(err.toString))
           }
@@ -119,7 +119,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
     object Frontend {
       object Transport extends RequestTransport[PickleType, ClientResult] {
         override def apply(request: Request[PickleType]): ClientResult[PickleType] = EitherT(
-          Backend.router(request).toEither match {
+          Backend.router(request) match {
             case Right(ApiResult(event@_, result)) =>
               result.map(Right(_)).recover { case NonFatal(t) => Left(UnexpectedError(t.getMessage)) }
             case Left(err) => Future.successful(Left(SlothServerError(err)))
@@ -145,7 +145,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
     object Frontend {
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] =
-          Backend.router(request).toEither.fold(err => Future.failed(new Exception(err.toString)), _(10).result)
+          Backend.router(request).fold(err => Future.failed(new Exception(err.toString)), _(10).result)
       }
 
       val client = Client[PickleType, Future](Transport)

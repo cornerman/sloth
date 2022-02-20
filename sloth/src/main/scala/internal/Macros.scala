@@ -149,23 +149,25 @@ object TraitMacro {
     (c: Context)
     (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = {
       import c.universe._
-      implBase[Trait, PickleType, Result](c)(q"new _root_.sloth.internal.ClientImpl(${c.prefix})")
+      val implTerm = q"new _root_.sloth.internal.ClientImpl(${c.prefix})"
+      implBase[Trait, PickleType, Result](c)(implTerm)
     }
 
   def implContra[Trait, PickleType, Result[_]]
     (c: Context)
     (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = {
       import c.universe._
-      implBase[Trait, PickleType, Result](c)(q"new _root_.sloth.internal.ClientContraImpl(${c.prefix})")
+      val implTerm = q"new _root_.sloth.internal.ClientContraImpl(${c.prefix})"
+      implBase[Trait, PickleType, Result](c)(implTerm)
     }
 }
 
 object RouterMacro {
-  def impl[Trait, PickleType, Result[_]]
+  def implBase[Trait, PickleType, Result[_], Router]
     (c: Context)
     (value: c.Expr[Trait])
-    (functor: c.Expr[cats.Functor[Result]])
-    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[sloth.Router[PickleType, Result]] = Translator(c) { t =>
+    (impl: c.Tree)
+    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Router] = Translator(c) { t =>
     import c.universe._
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
@@ -188,12 +190,31 @@ object RouterMacro {
     q"""
       val value = $value
       val implRouter = ${c.prefix}
-      val impl = new ${t.internalPkg}.RouterImpl[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}](implRouter)($functor)
+      val impl = $impl
 
-      implRouter.orElse($traitPathPart, scala.collection.mutable.HashMap(..$methodTuples))
-
+      implRouter.orElse($traitPathPart, scala.collection.immutable.Map(..$methodTuples))
     """
   }
+
+  def impl[Trait, PickleType, Result[_]]
+    (c: Context)
+    (value: c.Expr[Trait])
+    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[sloth.RouterCo[PickleType, Result]] = {
+      import c.universe._
+
+      val implTerm = q"new _root_.sloth.internal.RouterImpl[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}](implRouter)"
+      implBase[Trait, PickleType, Result, sloth.RouterCo[PickleType, Result]](c)(value)(implTerm)
+    }
+
+  def implContra[Trait, PickleType, Result[_]]
+    (c: Context)
+    (value: c.Expr[Trait])
+    (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[sloth.RouterContra[PickleType, Result]] = {
+      import c.universe._
+
+      val implTerm = q"new _root_.sloth.internal.RouterContraImpl[${pickleTypeTag.tpe}, ${resultTag.tpe.typeConstructor}](implRouter)"
+      implBase[Trait, PickleType, Result, sloth.RouterContra[PickleType, Result]](c)(value)(implTerm)
+    }
 }
 object ChecksumMacro {
   def impl[Trait]
