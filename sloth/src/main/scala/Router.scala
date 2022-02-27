@@ -7,16 +7,17 @@ import cats.Functor
 trait Router[PickleType, Result[_]] {
   protected def apiMap: Router.ApiMap[PickleType, Result]
 
-  def apply(request: Request[PickleType]): Either[ServerFailure, Result[PickleType]] = {
-    val result = request.path match {
-      case apiName :: methodName :: Nil =>
-        val function = apiMap.get(apiName).flatMap(_.get(methodName))
-        function.map(f => f(request.payload))
-      case _ => None
+  def apply(request: Request[PickleType]): Either[ServerFailure, Result[PickleType]] =
+    getFunction(request.path) match {
+      case Some(function) => function(request.payload)
+      case None => Left(ServerFailure.PathNotFound(request.path))
     }
 
-    result.getOrElse(Left(ServerFailure.PathNotFound(request.path)))
-  }
+  def getFunction(path: List[String]): Option[PickleType => Either[ServerFailure, Result[PickleType]]] =
+    path match {
+      case apiName :: methodName :: Nil => apiMap.get(apiName).flatMap(_.get(methodName))
+      case _ => None
+    }
 }
 
 class RouterCo[PickleType, Result[_]](private[sloth] val logger: LogHandler[Result], protected val apiMap: Router.ApiMap[PickleType, Result])(implicit
