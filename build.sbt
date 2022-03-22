@@ -31,17 +31,38 @@ lazy val commonSettings = Seq(
   addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
 )
 
+lazy val jsSettings = Seq(
+    scalacOptions += {
+      val githubRepo    = "cornerman/sloth"
+      val local         = baseDirectory.value.toURI
+      val subProjectDir = baseDirectory.value.getName
+      val remote        = s"https://raw.githubusercontent.com/${githubRepo}/${git.gitHeadCommit.value.get}"
+      s"-P:scalajs:mapSourceURI:$local->$remote/${subProjectDir}/"
+    },
+)
+
 enablePlugins(ScalaJSPlugin)
 
 lazy val root = (project in file("."))
   .settings(commonSettings)
-  .aggregate(slothJS, slothJVM)
+  .aggregate(sloth.js, sloth.jvm, types.js, types.jvm)
   .settings(
-    skip in publish := true
+    publish / skip := true
   )
+
+lazy val types = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .settings(commonSettings)
+  .settings(
+    name := "sloth-types",
+    libraryDependencies ++=
+      Deps.cats.value ::
+      Nil
+  ).jsSettings(jsSettings)
 
 lazy val sloth = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
+  .dependsOn(types)
   .settings(commonSettings)
   .settings(
     name := "sloth",
@@ -56,15 +77,4 @@ lazy val sloth = crossProject(JSPlatform, JVMPlatform)
       Deps.circe.parser.value % Test ::
       Deps.scalaTest.value % Test ::
       Nil
-  ).jsSettings(
-      scalacOptions += {
-        val githubRepo    = "cornerman/sloth"
-        val local         = baseDirectory.value.toURI
-        val subProjectDir = baseDirectory.value.getName
-        val remote        = s"https://raw.githubusercontent.com/${githubRepo}/${git.gitHeadCommit.value.get}"
-        s"-P:scalajs:mapSourceURI:$local->$remote/${subProjectDir}/"
-      },
-  )
-
-lazy val slothJS = sloth.js
-lazy val slothJVM = sloth.jvm
+  ).jsSettings(jsSettings)
