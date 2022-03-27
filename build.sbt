@@ -28,32 +28,22 @@ inThisBuild(Seq(
 ))
 
 lazy val commonSettings = Seq(
-  addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
+  libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((3, _)) => Seq.empty
+    case _ => Seq(compilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full))
+  }),
 )
 
 lazy val jsSettings = Seq(
-    scalacOptions += {
-      val githubRepo    = "cornerman/sloth"
-      val local         = baseDirectory.value.toURI
-      val subProjectDir = baseDirectory.value.getName
-      val remote        = s"https://raw.githubusercontent.com/${githubRepo}/${git.gitHeadCommit.value.get}"
-      s"-P:scalajs:mapSourceURI:$local->$remote/${subProjectDir}/"
-    },
 )
 
 enablePlugins(ScalaJSPlugin)
-
-lazy val root = (project in file("."))
-  .settings(commonSettings)
-  .aggregate(sloth.js, sloth.jvm, types.js, types.jvm)
-  .settings(
-    publish / skip := true
-  )
 
 lazy val types = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .settings(commonSettings)
   .settings(
+    crossScalaVersions := Seq("2.12.15", "2.13.8", "3.1.1"),
     name := "sloth-types",
     libraryDependencies ++=
       Deps.cats.value ::
