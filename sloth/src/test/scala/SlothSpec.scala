@@ -68,15 +68,10 @@ object ApiImplFunResponse extends Api[ApiResultFun] {
 class SlothSpec extends AsyncFreeSpec with Matchers {
   import cats.derived.auto.functor._
 
-  // "do not compile wrong route call" in {
-  //   //TODO assertDoesNotCompile somehow does not work correctly.
-  //   Router[String, Future].route(EmptyApi)
-  // }
-
   "run simple" in {
     object Backend {
       val router = Router[PickleType, Future]
-        .route[EmptyApi](EmptyApi)
+        .route(EmptyApi)
         .route[Api[Future]](ApiImplFuture)
         .route[SingleApi](SingleApiImpl)
     }

@@ -170,15 +170,6 @@ object RouterMacro {
     (implicit traitTag: c.WeakTypeTag[Trait], pickleTypeTag: c.WeakTypeTag[PickleType], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Router] = Translator(c) { t =>
     import c.universe._
 
-    // check whether the passed type parameter Trait is explicitly provided and
-    // not infered from the value. you might mistakenly call router.route(impl)
-    // instead of router.route[Api](impl). But then the created router here
-    // will not find any abstract methods and listen under a different api-name
-    // in the path. So, you will end up with PathNotFound.
-    if (traitTag.tpe =:= value.actualType) {
-      c.abort(c.enclosingPosition, s"You need to specify the type parameter for the route method explicitly: ${c.prefix.tree}.route[<missing>](${value.tree})")
-    }
-
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
     val traitPathPart = t.traitPathPart(traitTag.tpe)
