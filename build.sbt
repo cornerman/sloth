@@ -39,20 +39,8 @@ lazy val jsSettings = Seq(
 
 enablePlugins(ScalaJSPlugin)
 
-lazy val types = crossProject(JSPlatform, JVMPlatform)
-  .crossType(CrossType.Pure)
-  .settings(commonSettings)
-  .settings(
-    crossScalaVersions := Seq("2.12.15", "2.13.8", "3.1.1"),
-    name := "sloth-types",
-    libraryDependencies ++=
-      Deps.cats.value ::
-      Nil
-  ).jsSettings(jsSettings)
-
 lazy val sloth = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
-  .dependsOn(types)
   .settings(commonSettings)
   .settings(
     name := "sloth",

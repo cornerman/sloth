@@ -1,15 +1,16 @@
 package sloth
 
-import sloth.types.FlatMapError
-
 trait ClientHandler[F[_]] {
   def raiseFailure[B](failure: ClientFailure): F[B]
   def eitherMap[A,B](fa: F[A])(f: A => Either[ClientFailure, B]): F[B]
 }
 object ClientHandler {
-  implicit def flatMapError[F[_], ErrorType](implicit me: FlatMapError[F, ErrorType], c: ClientFailureConvert[ErrorType]): ClientHandler[F] = new ClientHandler[F] {
+  import cats.MonadError
+  import cats.implicits._
+
+  implicit def monadError[F[_], ErrorType](implicit me: MonadError[F, ErrorType], c: ClientFailureConvert[ErrorType]): ClientHandler[F] = new ClientHandler[F] {
     override def raiseFailure[B](failure: ClientFailure): F[B] = me.raiseError(c.convert(failure))
-    override def eitherMap[A,B](fa: F[A])(f: A => Either[ClientFailure, B]): F[B] = me.flatMapEither(fa)(pt => f(pt).left.map(c.convert(_)))
+    override def eitherMap[A,B](fa: F[A])(f: A => Either[ClientFailure, B]): F[B] = fa.map(pt => f(pt).left.map(c.convert)).rethrow
   }
 }
 
