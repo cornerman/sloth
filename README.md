@@ -116,14 +116,14 @@ val router = Router[ByteBuffer, ServerResult]
     .route[Api[ServerResult]](ApiImpl)
 ```
 
-It is also possible to have a contravariant return type in your server. You can use `Kleisli` with any `cats.ApplicativeError` that can capture a `Throwable` or `ServerFailure` (see `ServerFailureConvert` / `RouterContraHandler` for more customization):
+It is also possible to have a contravariant return type in your server. You can use `Kleisli` (or a plain function) with any `cats.ApplicativeError` that can capture a `Throwable` or `ServerFailure` (see `ServerFailureConvert` / `RouterContraHandler` for more customization):
 ```scala
 type ServerResult[T] = T => Unit
 
 object ApiImpl extends Api[ServerResult] {
-    def fun(a: Int): Int => String = { int =>
+    def fun(a: Int): String => Unit = { string =>
         println(s"Argument: $a")
-        println(s"Return: $int")
+        println(s"Return: $string")
     }
 }
 
@@ -142,7 +142,7 @@ val api: Api = client.wire[Api[ClientResult]]
 api.fun(1)
 ```
 
-It is also possible to have a contravariant return type in your client. You can use `Kleisli` with any `cats.ApplicativeError` that can capture a `Throwable` or `ClientFailure` (see `ClientFailureConvert` / `ClientContraHandler` for more customization):
+It is also possible to have a contravariant return type in your client. You can use `Kleisli` (or a plain function) with any `cats.ApplicativeError` that can capture a `Throwable` or `ClientFailure` (see `ClientFailureConvert` / `ClientContraHandler` for more customization):
 ```scala
 type ClientResult[T] = T => Either[ClientFailure, Unit]
 
@@ -207,6 +207,8 @@ trait Api {
 ### Serialization
 
 For serialization, we make use of the typeclasses provided by [chameleon](https://github.com/cornerman/chameleon). You can use existing libraries like circe, upickle, scodec or boopickle out of the box or define a serializer yourself (see the project readme). So you need a `Serializer` and `Deserializer` for each type you are using in the method signature of your API methods.
+
+In the above examples, we used the type `ByteBuffer` to select the serialization method. We get implicit serializers/deserializers for `ByteBuffer` through the import `chameleon.ext.boopickle._`. Or you can use circe by providing the type `Json` (or String) and importing `chameleon.ext.circe._`. There are more available in chameleon.
 
 ## How does it work
 
