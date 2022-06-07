@@ -79,10 +79,11 @@ class Translator[C <: Context](val c: C) {
     case Nil => tq"_root_.scala.Unit"
     case list => tq"(..${list.map(_.typeSignature)})"
   }
-  def objectToParams(tpe: Type, obj: TermName): List[List[Tree]] = tpe.paramLists.flatten.size match {
-    case 0 => Nil
-    case 1 => tpe.paramLists.map(_.map(_ => q"$obj"))
-    case _ => tpe.paramLists.zipWithIndex.map { case (params, i) => params.zipWithIndex.map { case (_, j) => q"$obj.${TermName("_" + (i + j + 1))}" } }
+  def objectToParams(tpe: Type, obj: TermName): List[List[Tree]] = tpe.paramLists match {
+    case Nil => Nil
+    case List(Nil) => List(Nil)
+    case List(List(_)) => List(List(q"$obj"))
+    case lists => lists.zipWithIndex.map { case (params, i) => params.zipWithIndex.map { case (_, j) => q"$obj.${TermName("_" + (i + j + 1))}" } }
   }
 
   def wrapAsParamsType(tpe: Type): Tree = tpe.paramLists.flatten match {

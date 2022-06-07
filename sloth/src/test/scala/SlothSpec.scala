@@ -29,6 +29,7 @@ object SingleApiImpl extends SingleApi {
 //shared
 trait ExtendedApi[Result[_]] {
   def simple: Result[Int]
+  def simpleBracket(): Result[Int]
 }
 trait Api[Result[_]] extends ExtendedApi[Result] {
   def single(a: Int): Result[Int]
@@ -40,6 +41,7 @@ trait Api[Result[_]] extends ExtendedApi[Result] {
 //server
 object ApiImplFuture extends Api[Future] {
   def simple: Future[Int] = Future.successful(1)
+  def simpleBracket(): Future[Int] = Future.successful(1)
   def single(a: Int): Future[Int] = Future.successful(a)
   def fun(a: Int, b: String): Future[Int] = Future.successful(a)
   def fun2(a: Int, b: String): Future[Int] = Future.successful(a)
@@ -49,6 +51,7 @@ object ApiImplFuture extends Api[Future] {
 case class ApiResult[T](event: String, result: Future[T])
 object ApiImplResponse extends Api[ApiResult] {
   def simple: ApiResult[Int] = ApiResult("peter", Future.successful(1))
+  def simpleBracket(): ApiResult[Int] = ApiResult("peter", Future.successful(1))
   def single(a: Int): ApiResult[Int] = ApiResult("peter", Future.successful(a))
   def fun(a: Int, b: String): ApiResult[Int] = ApiResult("hans", Future.successful(a))
   def fun2(a: Int, b: String): ApiResult[Int] = ApiResult("hans", Future.successful(a))
@@ -59,6 +62,7 @@ object TypeHelper { type ApiResultFun[T] = Int => ApiResult[T] }
 import TypeHelper._
 object ApiImplFunResponse extends Api[ApiResultFun] {
   def simple: ApiResultFun[Int] = i => ApiResult("peter", Future.successful(i))
+  def simpleBracket(): ApiResultFun[Int] = i => ApiResult("peter", Future.successful(i))
   def single(a: Int): ApiResultFun[Int] = _ => ApiResult("peter", Future.successful(a))
   def fun(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
   def fun2(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
@@ -94,6 +98,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
     }
 
     Frontend.api.simple
+    Frontend.api.simpleBracket()
     Frontend.api.single(1)
     Frontend.singleApi.foo(1, 2)
     Frontend.api.fun(1).map(_ mustEqual 1)
