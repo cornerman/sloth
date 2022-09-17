@@ -4,8 +4,8 @@ import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 inThisBuild(Seq(
   organization := "com.github.cornerman",
 
-  scalaVersion := "2.12.16",
-  crossScalaVersions := Seq("2.12.16", "2.13.8"),
+  scalaVersion := "2.12.17",
+  crossScalaVersions := Seq("2.12.17", "2.13.8"),
 
   licenses := Seq("MIT License" -> url("https://opensource.org/licenses/MIT")),
 
@@ -43,7 +43,7 @@ lazy val types = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .settings(commonSettings)
   .settings(
-    crossScalaVersions := Seq("2.12.16", "2.13.8", "3.2.0"),
+    crossScalaVersions := Seq("2.12.17", "2.13.8", "3.2.0"),
     name := "sloth-types",
     libraryDependencies ++=
       Deps.cats.value ::
