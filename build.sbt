@@ -43,7 +43,7 @@ lazy val types = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .settings(commonSettings)
   .settings(
-    crossScalaVersions := Seq("2.12.17", "2.13.10", "3.2.0"),
+    crossScalaVersions := Seq("2.12.17", "2.13.10", "3.2.1"),
     name := "sloth-types",
     libraryDependencies ++=
       Deps.cats.value ::
