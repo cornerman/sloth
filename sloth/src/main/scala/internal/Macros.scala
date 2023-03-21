@@ -83,7 +83,12 @@ class Translator[C <: Context](val c: C) {
     case Nil => Nil
     case List(Nil) => List(Nil)
     case List(List(_)) => List(List(q"$obj"))
-    case lists => lists.zipWithIndex.map { case (params, i) => params.zipWithIndex.map { case (_, j) => q"$obj.${TermName("_" + (i + j + 1))}" } }
+    case lists =>
+      var counter = 0
+      lists.map(_.map { _ =>
+        counter += 1
+        q"$obj.${TermName("_" + counter)}"
+      })
   }
 
   def wrapAsParamsType(tpe: Type): Tree = tpe.paramLists.flatten match {
