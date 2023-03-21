@@ -148,7 +148,8 @@ type ClientResult[T] = Either[ClientFailure, T]
 
 val client = Client[PickleType, ClientResult](Transport)
 val api: Api = client.wire[Api[ClientResult]]
-api.fun(1)
+
+api.fun(1): Either[ClientFailure, String]
 ```
 
 It is also possible to have a contravariant return type in your client. You can use `Kleisli` (or a plain function) with any `cats.ApplicativeError` that can capture a `Throwable` or `ClientFailure` (see `ClientFailureConvert` / `ClientContraHandler` for more customization):
@@ -158,7 +159,7 @@ type ClientResult[T] = T => Either[ClientFailure, Unit]
 val client = Client.contra[PickleType, ClientResult](Transport)
 val api: Api = client.wire[Api[ClientResult]]
 
-api.fun(1)
+api.fun(1): String => Either[ClientFailure, Unit]
 ```
 
 ### Multiple routes
