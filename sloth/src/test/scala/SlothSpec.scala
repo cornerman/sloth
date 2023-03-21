@@ -36,6 +36,7 @@ trait Api[Result[_]] extends ExtendedApi[Result] {
   def fun(a: Int, b: String = "drei"): Result[Int]
   def fun2(a: Int, b: String): Result[Int]
   def multi(a: Int)(b: Int): Result[Int]
+  def multi2(a: Int, b: String)(c: Double): Result[Int]
 }
 
 //server
@@ -46,6 +47,7 @@ object ApiImplFuture extends Api[Future] {
   def fun(a: Int, b: String): Future[Int] = Future.successful(a)
   def fun2(a: Int, b: String): Future[Int] = Future.successful(a)
   def multi(a: Int)(b: Int): Future[Int] = Future.successful(a)
+  def multi2(a: Int, b: String)(c: Double): Future[Int] = Future.successful(a + c.toInt)
 }
 //or
 case class ApiResult[T](event: String, result: Future[T])
@@ -56,6 +58,7 @@ object ApiImplResponse extends Api[ApiResult] {
   def fun(a: Int, b: String): ApiResult[Int] = ApiResult("hans", Future.successful(a))
   def fun2(a: Int, b: String): ApiResult[Int] = ApiResult("hans", Future.successful(a))
   def multi(a: Int)(b: Int): ApiResult[Int] = ApiResult("hans", Future.successful(a + b))
+  def multi2(a: Int, b: String)(c: Double): ApiResult[Int] = ApiResult("hans", Future.successful(a + c.toInt))
 }
 //or
 object TypeHelper { type ApiResultFun[T] = Int => ApiResult[T] }
@@ -67,6 +70,7 @@ object ApiImplFunResponse extends Api[ApiResultFun] {
   def fun(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
   def fun2(a: Int, b: String): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + i))
   def multi(a: Int)(b: Int): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + b + i))
+  def multi2(a: Int, b: String)(c: Double): ApiResultFun[Int] = i => ApiResult("hans", Future.successful(a + c.toInt + i))
 }
 
 class SlothSpec extends AsyncFreeSpec with Matchers {
@@ -97,11 +101,18 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
       val emptyApi = client.wire[EmptyApi]
     }
 
-    Frontend.api.simple
-    Frontend.api.simpleBracket()
-    Frontend.api.single(1)
-    Frontend.singleApi.foo(1, 2)
-    Frontend.api.fun(1).map(_ mustEqual 1)
+    for {
+      simple <- Frontend.api.simple
+      _ = simple mustEqual 1
+      simpleBracket <- Frontend.api.simpleBracket()
+      _ = simpleBracket mustEqual 1
+      single <- Frontend.api.single(1)
+      _ = single mustEqual 1
+      foo <- Frontend.singleApi.foo(1, 2)
+      _ = foo mustEqual 3
+      fun <- Frontend.api.fun(1)
+      _ = fun mustEqual 1
+    } yield succeed
   }
 
  "run different result types" in {
@@ -135,9 +146,16 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
       val api = client.wire[Api[ClientResult]]
     }
 
-    Frontend.api.fun2(1, "AAAA")
-    Frontend.api.multi(11)(3)
-    Frontend.api.fun(1).value.map(_ mustEqual Right(1))
+    for {
+      fun2 <- Frontend.api.fun2(1, "AAAA").value
+      _ = fun2 mustEqual Right(1)
+      multi <- Frontend.api.multi(11)(3).value
+      _ = multi mustEqual Right(14)
+      multi2 <- Frontend.api.multi2(1, "hallo")(3.0).value
+      _ = multi2 mustEqual Right(4)
+      fun <- Frontend.api.fun(1).value
+      _ = fun mustEqual Right(1)
+    } yield succeed
   }
 
  "run different result types with fun" in {
@@ -157,6 +175,9 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
       val api = client.wire[Api[Future]]
     }
 
-    Frontend.api.fun(1).map(_ mustEqual 11)
+    for {
+      fun <- Frontend.api.fun(1)
+      _ = fun mustEqual 11
+    } yield succeed
   }
 }
