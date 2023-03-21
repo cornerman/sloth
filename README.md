@@ -105,10 +105,14 @@ In your server, you can use any `cats.Functor` as `F`, for example:
 ```scala
 type ServerResult[T] = User => T
 
+trait Api[F[_]] {
+    def fun(a: Int): F[String]
+}
+
 object ApiImpl extends Api[ServerResult] {
     def fun(a: Int): User => String = { user =>
         println(s"User: $user")
-        a + 1
+        s"Number: $a"
     }
 }
 
@@ -118,12 +122,17 @@ val router = Router[ByteBuffer, ServerResult]
 
 It is also possible to have a contravariant return type in your server. You can use `Kleisli` (or a plain function) with any `cats.ApplicativeError` that can capture a `Throwable` or `ServerFailure` (see `ServerFailureConvert` / `RouterContraHandler` for more customization):
 ```scala
-type ServerResult[T] = T => Unit
+type ServerResult[T] = T => Either[ServerFailure, Unit]
+
+trait Api[F[_]] {
+    def fun(a: Int): F[String]
+}
 
 object ApiImpl extends Api[ServerResult] {
-    def fun(a: Int): String => Unit = { string =>
+    def fun(a: Int): String => Either[ServerFailure, Unit] = { string =>
         println(s"Argument: $a")
         println(s"Return: $string")
+        Right(())
     }
 }
 
