@@ -3,6 +3,8 @@ package sloth
 import sloth.internal.RouterMacro
 
 import cats.Functor
+import cats.implicits._
+import cats.~>
 
 trait Router[PickleType, Result[_]] {
   protected def apiMap: Router.ApiMap[PickleType, Result]
@@ -27,6 +29,8 @@ class RouterCo[PickleType, Result[_]](private[sloth] val logger: LogHandler[Resu
   def route[T](value: T): RouterCo[PickleType, Result] = macro RouterMacro.impl[T, PickleType, Result]
 
   def orElse(name: String, value: Router.ApiMapValue[PickleType, Result]): RouterCo[PickleType, Result] = new RouterCo(logger, apiMap + (name -> value))
+
+  def mapResult[R[_]: Functor](f: Result ~> R, logger: LogHandler[R] = LogHandler.empty[R]): Router[PickleType, R] = new RouterCo(logger, apiMap.map { case (k, v) => (k, v.map { case (k, v) => (k, v.map(_.map(f.apply))) }.toMap) }.toMap)
 }
 
 class RouterContra[PickleType, Result[_]](private[sloth] val logger: LogHandler[Result], protected val apiMap: Router.ApiMap[PickleType, Result])(implicit
@@ -36,6 +40,8 @@ class RouterContra[PickleType, Result[_]](private[sloth] val logger: LogHandler[
   def route[T](value: T): RouterContra[PickleType, Result] = macro RouterMacro.implContra[T, PickleType, Result]
 
   def orElse(name: String, value: Router.ApiMapValue[PickleType, Result]): RouterContra[PickleType, Result] = new RouterContra(logger, apiMap + (name -> value))
+
+  def mapResult[R[_]: RouterContraHandler](f: Result ~> R, logger: LogHandler[R] = LogHandler.empty[R]): Router[PickleType, R] = new RouterContra(logger, apiMap.map { case (k, v) => (k, v.map { case (k, v) => (k, v.map(_.map(f.apply))) }.toMap) }.toMap)
 }
 
 object Router {
