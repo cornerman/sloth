@@ -7,7 +7,9 @@ Sloth is essentially a pair of macros (server and client) which takes an API def
 
 This library is inspired by [autowire](https://github.com/lihaoyi/autowire). Some differences:
 * No macro application on the call-site in the client (`.call()`), just one macro for creating an instance of an API trait
-* Return types of Api traits are not restricted to `Future`. You can use any higher-kinded generic return types (`cats.Functor` (or `cats.data.Kleisli` with `cats.ApplicativeError`) in server, `cats.MonadError` (or `cats.data.Kleisli` with `cats.ApplicativeError`) in client)
+* Return types of Api traits are not restricted to `Future`. You can use any higher-kinded generic return types:
+  - Server: `cats.Functor` (or `cats.data.Kleisli` with `cats.ApplicativeError`)
+  - Client: `cats.MonadError` (or `cats.data.Kleisli` with `cats.ApplicativeError`)
 
 ## Get started
 
