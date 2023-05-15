@@ -1,5 +1,6 @@
 package test
 
+import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import sloth._
@@ -29,8 +30,8 @@ object SingleApiImpl extends SingleApi {
   def foo: Future[Int] = Future.successful(13)
   def foo(ints: TwoInts): Future[Int] = Future.successful(ints.a + ints.b)
 
-  def bum(a: Int): Option[Int] = Some(1)
-  def bom[T](a: T): Future[Int] = Future.successful(1)
+  def bum(@unused a: Int): Option[Int] = Some(1)
+  def bom[T](@unused a: T): Future[Int] = Future.successful(1)
 }
 
 trait OneApi[F[_]] {
