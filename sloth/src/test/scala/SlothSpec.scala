@@ -3,6 +3,7 @@ package test.sloth
 import scala.concurrent.Future
 import scala.util.control.NonFatal
 import sloth._
+import cats.implicits._
 
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.must.Matchers
@@ -24,6 +25,17 @@ trait SingleApi {
 }
 object SingleApiImpl extends SingleApi {
   def foo(ints: TwoInts): Future[Int] = Future.successful(ints.a + ints.b)
+}
+
+trait OneApi[F[_]] {
+  def one(a: Int): F[String]
+}
+object OneApiImpl extends OneApi[* => Future[Unit]] {
+  type Result[X] = X => Future[Unit]
+
+  val messages = collection.mutable.ArrayBuffer[String]()
+
+  def one(a: Int): Result[String] = str => Future.successful(messages += s"$str: $a")
 }
 
 //shared
@@ -140,7 +152,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
               result.map(Right(_)).recover { case NonFatal(t) => Left(UnexpectedError(t.getMessage)) }
             case Left(err) => Future.successful(Left(SlothServerError(err)))
           })
-      }
+          }
 
       val client = Client[PickleType, ClientResult](Transport)
       val api = client.wire[Api[ClientResult]]
@@ -169,7 +181,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] =
           Backend.router(request).fold(err => Future.failed(new Exception(err.toString)), _(10).result)
-      }
+        }
 
       val client = Client[PickleType, Future](Transport)
       val api = client.wire[Api[Future]]
@@ -178,6 +190,37 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
     for {
       fun <- Frontend.api.fun(1)
       _ = fun mustEqual 11
+    } yield succeed
+  }
+
+  "run contra" in {
+
+    object Backend {
+      val router = Router.contra[PickleType, OneApiImpl.Result]
+        .route[OneApi[OneApiImpl.Result]](OneApiImpl)
+    }
+
+    object Frontend {
+      object Transport extends RequestTransport[PickleType, OneApiImpl.Result] {
+        override def apply(request: Request[PickleType]): OneApiImpl.Result[PickleType] = {
+          println(request)
+          Backend.router(request) match {
+            case Right(result) => result
+            case Left(err) => _ => Future.failed(new Exception(err.toString))
+          }
+        }
+      }
+
+      val client = Client.contra[PickleType, OneApiImpl.Result](Transport)
+      val api = client.wire[OneApi[OneApiImpl.Result]]
+    }
+
+    for {
+      _ <- Future.successful(1)
+      _ <- Frontend.api.one(1)("hallo")
+      _ = OneApiImpl.messages.toList mustEqual List("hallo: 1")
+      _ <- Frontend.api.one(13)("gut")
+      _ = OneApiImpl.messages.toList mustEqual List("hallo: 1", "gut: 13")
     } yield succeed
   }
 }
