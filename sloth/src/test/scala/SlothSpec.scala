@@ -28,9 +28,9 @@ trait SingleApi {
 object SingleApiImpl extends SingleApi {
   def foo: Future[Int] = Future.successful(13)
   def foo(ints: TwoInts): Future[Int] = Future.successful(ints.a + ints.b)
-  // should not compile
-  // def bum(a: Int): Option[Int] = Some(1)
-  // def bom[T](a: T): Future[Int] = Future.successful(1)
+
+  def bum(a: Int): Option[Int] = Some(1)
+  def bom[T](a: T): Future[Int] = Future.successful(1)
 }
 
 trait OneApi[F[_]] {
