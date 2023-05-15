@@ -1,5 +1,6 @@
 # sloth :sloth:
-[![Build Status](https://travis-ci.org/cornerman/sloth.svg?branch=master)](https://travis-ci.org/cornerman/sloth) [![Gitter](https://badges.gitter.im/sloth-api/community.svg)](https://gitter.im/sloth-api/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![sloth Scala version support](https://index.scala-lang.org/cornerman/sloth/sloth/latest-by-scala-version.svg?platform=sjs1)](https://index.scala-lang.org/cornerman/sloth/sloth)
+[![sloth Scala version support](https://index.scala-lang.org/cornerman/sloth/sloth/latest-by-scala-version.svg?platform=jvm)](https://index.scala-lang.org/cornerman/sloth/sloth)
 
 Type safe RPC in scala
 
