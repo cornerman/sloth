@@ -44,11 +44,9 @@ private def isExpectedReturnTypeConstructor[Trait: Type, Result[_]: Type](using 
   import quotes.reflect.*
 
   val expectedReturnType = TypeRepr.of[Result]
+  val methodReturnType = getMethodType[Trait](method)
 
-  getMethodType[Trait](method) match {
-    case tpe: AppliedType => tpe.tycon <:< expectedReturnType
-    case _ => false
-  }
+  getTypeConstructor(methodReturnType) <:< getTypeConstructor(expectedReturnType)
 }
 
 private def getInnerTypeOutOfReturnType[Trait: Type, Result[_]: Type](using Quotes)(method: quotes.reflect.Symbol): quotes.reflect.TypeRepr = {
@@ -63,17 +61,17 @@ private def getInnerTypeOutOfReturnType[Trait: Type, Result[_]: Type](using Quot
     case _ => -1
   }
  
-  val tpe = getMethodType[Trait](method)
+  val methodReturnType = getMethodType[Trait](method)
   parameterTypeIndex match {
-    case -1 => tpe.typeArgs.last
-    case index =>  tpe.typeArgs(index)
+    case -1 => methodReturnType.typeArgs.last
+    case index => methodReturnType.typeArgs(index)
   }
 }
 
 private def checkMethodErrors[Trait: Type, Result[_]: Type](using q: Quotes)(methods: Seq[quotes.reflect.Symbol]): Unit = {
   import quotes.reflect.*
 
-  val duplicateErrors = methods.groupBy(m => getPathName(m)).collect { case (name, symbols) if symbols.size > 1 =>
+  val duplicateErrors = methods.groupBy(getPathName).collect { case (name, symbols) if symbols.size > 1 =>
     val message = s"Method $name is overloaded, please rename one of the methods or use the PathName annotation to disambiguate"
     (message, symbols.flatMap(_.pos).lastOption)
   }
@@ -172,8 +170,8 @@ object TraitMacro {
     val cls = Symbol.newClass(Symbol.spliceOwner, "Anon", parents.map(_.tpe), decls, selfType = None)
 
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
-      val body = cls.declaredMethods.map { method =>
-        val methodPathPart = getPathName(method)
+      val body = (cls.declaredMethods.zip(methods)).map { case (method, origMethod) =>
+        val methodPathPart = getPathName(origMethod)
         val path = traitPathPart :: methodPathPart :: Nil
 
         DefDef(method, { argss =>

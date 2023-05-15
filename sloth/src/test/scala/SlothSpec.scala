@@ -16,15 +16,21 @@ object EmptyApi extends EmptyApi
 
 case class TwoInts(a:Int, b:Int)
 trait SingleApi {
-  // should not compile
-  // def bum(a: Int, b: Int): Option[Int]
   def foo(a: Int, b: Int): Future[Int] = foo(TwoInts(a,b))
   def foo(ints: TwoInts): Future[Int]
+  // should not compile because of wrong return type
+  // def bum(a: Int): Option[Int]
+  // should not compile because of generic parameter
+  // def bom[T](a: T): Future[Int]
+  @PathName("kanone") // does not compile without PathName, because overloaded
+  def foo: Future[Int]
 }
 object SingleApiImpl extends SingleApi {
-  // should not compile
-  // def bum(a: Int, b: Int): Option[Int] = Some(1)
+  def foo: Future[Int] = Future.successful(13)
   def foo(ints: TwoInts): Future[Int] = Future.successful(ints.a + ints.b)
+  // should not compile
+  // def bum(a: Int): Option[Int] = Some(1)
+  // def bom[T](a: T): Future[Int] = Future.successful(1)
 }
 
 trait OneApi[F[_]] {
@@ -109,7 +115,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
     object Frontend {
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] = {
-          println(request)
+          println("WOLF " + request)
           Backend.router(request) match {
             case Right(result) => result
             case Left(err) => Future.failed(new Exception(err.toString))
@@ -132,6 +138,8 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
       _ = single mustEqual 1
       foo <- Frontend.singleApi.foo(1, 2)
       _ = foo mustEqual 3
+      foo2 <- Frontend.singleApi.foo
+      _ = foo2 mustEqual 13
       fun <- Frontend.api.fun(1)
       _ = fun mustEqual 1
     } yield succeed
