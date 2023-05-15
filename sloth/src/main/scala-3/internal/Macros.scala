@@ -125,11 +125,6 @@ private def definedMethodsInType[T: Type](using Quotes): List[quotes.reflect.Sym
 @experimental
 object TraitMacro {
 
-  trait Test[F[_]] {
-    def foo: F[Int]
-
-  }
-
   def impl[Trait: Type, PickleType: Type, Result[_]: Type](prefix: Expr[ClientCo[PickleType, Result]])(using Quotes): Expr[Trait] = {
     val implInstance = '{ new ClientImpl[PickleType, Result](${prefix}) }
     implBase[Trait, PickleType, Result](implInstance, prefix)
