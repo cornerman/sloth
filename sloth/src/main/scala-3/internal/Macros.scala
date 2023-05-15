@@ -19,7 +19,6 @@ private def getPathName(using Quotes)(symbol: quotes.reflect.Symbol): String = {
 private def isExpectedReturnTypeConstructor[Result[_]: Type](using Quotes)(method: quotes.reflect.Symbol): Boolean = {
   // import quotes.reflect.*
 
-  // val apiType = TypeRepr.of[Any]
   // val expectedReturnType = TypeRepr.of[Result]
 
   // method.tree match {
@@ -129,7 +128,7 @@ object TraitMacro {
     implBase[Trait, PickleType, Result](implInstance, prefix)
   }
 
-  private def implBase[Trait: Type, PickleType: Type, Result[_]: Type](implInstance: Expr[Any], prefix: Expr[Any])(using Quotes): Expr[Trait] = {
+  private def implBase[Trait: Type, PickleType: Type, Result[_]: Type](implInstance: Expr[Any], prefix: Expr[Client[PickleType, Result]])(using Quotes): Expr[Trait] = {
     import quotes.reflect.*
 
     val methods = definedMethodsInType[Trait]

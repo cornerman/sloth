@@ -2,17 +2,19 @@ package sloth
 
 import sloth.internal.{PlatformSpecificClientCo, PlatformSpecificClientContra}
 
+trait Client[PickleType, Result[_]]
+
 class ClientCo[PickleType, Result[_]](
   private[sloth] val transport: RequestTransport[PickleType, Result],
   private[sloth] val logger: LogHandler[Result]
 )(implicit private[sloth] val failureHandler: ClientHandler[Result])
-extends PlatformSpecificClientCo[PickleType, Result]
+extends Client[PickleType, Result] with PlatformSpecificClientCo[PickleType, Result]
 
 class ClientContra[PickleType, Result[_]](
   private[sloth] val transport: RequestTransport[PickleType, Result],
   private[sloth] val logger: LogHandler[Result]
 )(implicit private[sloth] val failureHandler: ClientContraHandler[Result])
-extends PlatformSpecificClientContra[PickleType, Result]
+extends Client[PickleType, Result] with PlatformSpecificClientContra[PickleType, Result]
 
 object Client {
   def apply[PickleType, Result[_]](transport: RequestTransport[PickleType, Result], logger: LogHandler[Result] = LogHandler.empty[Result])(implicit failureHandler: ClientHandler[Result]) = new ClientCo[PickleType, Result](transport, logger)
