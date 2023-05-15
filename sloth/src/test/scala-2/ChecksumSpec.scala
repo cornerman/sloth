@@ -1,4 +1,4 @@
-package test.sloth
+package test
 
 import sloth.ChecksumCalculator._
 import org.scalatest.freespec.AsyncFreeSpec

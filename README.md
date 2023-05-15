@@ -2,7 +2,7 @@
 [![sloth Scala version support](https://index.scala-lang.org/cornerman/sloth/sloth/latest-by-scala-version.svg?platform=sjs1)](https://index.scala-lang.org/cornerman/sloth/sloth)
 [![sloth Scala version support](https://index.scala-lang.org/cornerman/sloth/sloth/latest-by-scala-version.svg?platform=jvm)](https://index.scala-lang.org/cornerman/sloth/sloth)
 
-Type safe RPC in scala
+Type safe RPC in scala (scala 2 and scala 3)
 
 Sloth is essentially a pair of macros (server and client) which takes an API definition in the form of a scala trait and then generates code for routing in the server as well as generating an API implementation in the client.
 
@@ -265,6 +265,8 @@ new Api {
 ```
 
 ## Experimental: Checksum for Apis
+
+Currently scala-2 only.
 
 In order to check the compatability of the client and server Api trait, you can calculate a checksum of your Api:
 

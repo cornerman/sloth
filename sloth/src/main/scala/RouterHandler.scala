@@ -25,7 +25,7 @@ object RouterContraHandler {
     }
   }
 
-  implicit def applicativeErrorKleisli2[I, R, F[_], ErrorType](implicit me: ApplicativeError[F, ErrorType], c: ServerFailureConvert[ErrorType]): RouterContraHandler[Lambda[A => Kleisli[F, (I, A), R]]] = new RouterContraHandler[Lambda[A => Kleisli[F, (I, A), R]]] {
+  implicit def applicativeErrorKleisli2[I, R, F[_], ErrorType](implicit me: ApplicativeError[F, ErrorType], c: ServerFailureConvert[ErrorType]): RouterContraHandler[λ[A => Kleisli[F, (I, A), R]]] = new RouterContraHandler[λ[A => Kleisli[F, (I, A), R]]] {
     override def eitherContramap[A,B](fa: Kleisli[F, (I, A), R])(f: B => Either[ServerFailure, A]): Kleisli[F, (I, B), R] = Kleisli { case (i, b) =>
       f(b) match {
         case Right(a) => fa((i, a))
@@ -34,7 +34,7 @@ object RouterContraHandler {
     }
   }
 
-  implicit def applicativeErrorFunc2[I, R, F[_], ErrorType](implicit me: ApplicativeError[F, ErrorType], c: ServerFailureConvert[ErrorType]): RouterContraHandler[Lambda[A => (I, A) => F[R]]] = new RouterContraHandler[Lambda[A => (I, A) => F[R]]] {
+  implicit def applicativeErrorFunc2[I, R, F[_], ErrorType](implicit me: ApplicativeError[F, ErrorType], c: ServerFailureConvert[ErrorType]): RouterContraHandler[λ[A => (I, A) => F[R]]] = new RouterContraHandler[λ[A => (I, A) => F[R]]] {
     override def eitherContramap[A,B](fa: (I, A) => F[R])(f: B => Either[ServerFailure, A]): (I, B) => F[R] = { (i, b) =>
       f(b) match {
         case Right(a) => fa(i, a)
