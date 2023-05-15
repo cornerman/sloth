@@ -16,30 +16,42 @@ private def getPathName(using Quotes)(symbol: quotes.reflect.Symbol): String = {
   }.getOrElse(symbol.name)
 }
 
-private def isExpectedReturnTypeConstructor[Result[_]: Type](using Quotes)(method: quotes.reflect.Symbol): Boolean = {
-  // import quotes.reflect.*
+private def getTypeConstructor(using Quotes)(tpe: quotes.reflect.TypeRepr): quotes.reflect.TypeRepr = {
+  import quotes.reflect.*
 
-  // val expectedReturnType = TypeRepr.of[Result]
-
-  // method.tree match {
-  //   case DefDef(_,_,typedTree,_) =>
-  //     val methodReturnType = TypeRepr.of(using typedTree.tpe.asType)
-      
-  //     methodReturnType match {
-  //       case tpe: AppliedType =>
-  //         tpe.tycon.dealias <:< expectedReturnType.dealias
-  //       case _ => false
-  //     }
-  //   case _ => false
-  // }
-
-  //TODO: the above does not work if the return type is a generic type parameter (see SlothSpec).
-  //It will anyhow give a compile error on the generated code.
-  //It would just be nicer to show the user which method has the wrong signature.
-  true
+  tpe match {
+    case tpe: AppliedType => getTypeConstructor(tpe.tycon)
+    case tpe: LambdaType => getTypeConstructor(tpe.resType)
+    case tpe => tpe
+  }
 }
 
-private def getInnerTypeOutOfReturnType[Result[_]: Type](using Quotes)(method: quotes.reflect.Symbol): quotes.reflect.TypeRepr = {
+private def getMethodType[Trait: Type](using Quotes)(method: quotes.reflect.Symbol): quotes.reflect.TypeRepr = {
+  import quotes.reflect.*
+
+  val traitType = TypeRepr.of[Trait]
+
+  def recurse(tpe: TypeRepr): TypeRepr = tpe match {
+    case MethodType(_, _, tpe) => recurse(tpe) // (multiple) parameter list are nested MethodTypes
+    case ByNameType(tpe) => tpe // nullary methods
+    case tpe => tpe // vals
+  }
+
+  recurse(traitType.memberType(method))
+}
+
+private def isExpectedReturnTypeConstructor[Trait: Type, Result[_]: Type](using Quotes)(method: quotes.reflect.Symbol): Boolean = {
+  import quotes.reflect.*
+
+  val expectedReturnType = TypeRepr.of[Result]
+
+  getMethodType[Trait](method) match {
+    case tpe: AppliedType => tpe.tycon <:< expectedReturnType
+    case _ => false
+  }
+}
+
+private def getInnerTypeOutOfReturnType[Trait: Type, Result[_]: Type](using Quotes)(method: quotes.reflect.Symbol): quotes.reflect.TypeRepr = {
   import quotes.reflect.*
 
   val expectedReturnType = TypeRepr.of[Result]
@@ -51,19 +63,14 @@ private def getInnerTypeOutOfReturnType[Result[_]: Type](using Quotes)(method: q
     case _ => -1
   }
  
-  method.tree match {
-    case DefDef(_,_,typedTree,_) =>
-      val methodReturnType = TypeRepr.of(using typedTree.tpe.asType)
-      parameterTypeIndex match {
-        case -1 => methodReturnType.typeArgs.last
-        case index =>  methodReturnType.typeArgs(index)
-      }
-    case _ =>
-      report.errorAndAbort("Method is not a DefDef: ${method.show}. This is a bug, please report at https://github.com/cornerman/sloth.", method.tree.pos)
+  val tpe = getMethodType[Trait](method)
+  parameterTypeIndex match {
+    case -1 => tpe.typeArgs.last
+    case index =>  tpe.typeArgs(index)
   }
 }
 
-private def checkMethodErrors[Result[_]: Type](using q: Quotes)(methods: Seq[quotes.reflect.Symbol]): Unit = {
+private def checkMethodErrors[Trait: Type, Result[_]: Type](using q: Quotes)(methods: Seq[quotes.reflect.Symbol]): Unit = {
   import quotes.reflect.*
 
   val duplicateErrors = methods.groupBy(m => getPathName(m)).collect { case (name, symbols) if symbols.size > 1 =>
@@ -72,12 +79,12 @@ private def checkMethodErrors[Result[_]: Type](using q: Quotes)(methods: Seq[quo
   }
 
   val invalidMethodErrors = methods.flatMap { method =>
-    val isExpectedReturnType = isExpectedReturnTypeConstructor[Result](method)
+    val isExpectedReturnType = isExpectedReturnTypeConstructor[Trait, Result](method)
     val hasGenericParams = method.paramSymss.headOption.exists(_.exists(_.isType))
 
     List(
       Option.when(hasGenericParams)(s"Method ${method.name} has a generic type parameter, this is not supported"),
-      Option.when(!isExpectedReturnType)(s"Method ${method.name} has unexpected return type, should be ${TypeRepr.of[Result].typeSymbol.name}"),
+      Option.when(!isExpectedReturnType)(s"Method ${method.name} has unexpected return type: is ${getTypeConstructor(getMethodType[Trait](method)).show}, but should be ${getTypeConstructor(TypeRepr.of[Result]).show}"),
     ).flatten.map(_ -> method.pos)
   }
 
@@ -118,6 +125,11 @@ private def definedMethodsInType[T: Type](using Quotes): List[quotes.reflect.Sym
 @experimental
 object TraitMacro {
 
+  trait Test[F[_]] {
+    def foo: F[Int]
+
+  }
+
   def impl[Trait: Type, PickleType: Type, Result[_]: Type](prefix: Expr[ClientCo[PickleType, Result]])(using Quotes): Expr[Trait] = {
     val implInstance = '{ new ClientImpl[PickleType, Result](${prefix}) }
     implBase[Trait, PickleType, Result](implInstance, prefix)
@@ -132,7 +144,7 @@ object TraitMacro {
     import quotes.reflect.*
 
     val methods = definedMethodsInType[Trait]
-    checkMethodErrors[Result](methods)
+    checkMethodErrors[Trait, Result](methods)
 
     val traitPathPart = getPathName(TypeRepr.of[Trait].typeSymbol)
 
@@ -183,7 +195,7 @@ object TraitMacro {
               case allArgs => Expr.ofTupleFromSeq(allArgs.map(_.asExpr))
             }
               
-            val returnType = getInnerTypeOutOfReturnType[Result](method)
+            val returnType = getInnerTypeOutOfReturnType[Trait, Result](method)
 
             val clientImplType = TypeRepr.of[ClientImpl[PickleType, Result]].typeSymbol
             val tupleTypeTree = TypeTree.of(using tupleExpr.asTerm.tpe.asType)
@@ -234,7 +246,7 @@ object RouterMacro {
     import quotes.reflect.*
 
     val methods = definedMethodsInType[Trait]
-    checkMethodErrors[Result](methods)
+    checkMethodErrors[Trait, Result](methods)
 
     val traitPathPart = getPathName(TypeRepr.of[Trait].typeSymbol)
 
@@ -254,7 +266,7 @@ object RouterMacro {
           case head :: tail => TypeRepr.of[*:].appliedTo(List(head, createTypeTreeTuple(tail)))
         }
         
-        val returnType = getInnerTypeOutOfReturnType[Result](method)
+        val returnType = getInnerTypeOutOfReturnType[Trait, Result](method)
         val tupleType = tupleTypesList match {
           case Nil => TypeRepr.of[Unit]
           case head :: Nil => head

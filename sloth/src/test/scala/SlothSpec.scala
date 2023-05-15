@@ -16,10 +16,14 @@ object EmptyApi extends EmptyApi
 
 case class TwoInts(a:Int, b:Int)
 trait SingleApi {
+  // should not compile
+  // def bum(a: Int, b: Int): Option[Int]
   def foo(a: Int, b: Int): Future[Int] = foo(TwoInts(a,b))
   def foo(ints: TwoInts): Future[Int]
 }
 object SingleApiImpl extends SingleApi {
+  // should not compile
+  // def bum(a: Int, b: Int): Option[Int] = Some(1)
   def foo(ints: TwoInts): Future[Int] = Future.successful(ints.a + ints.b)
 }
 
