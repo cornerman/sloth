@@ -116,7 +116,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
     object Frontend {
       object Transport extends RequestTransport[PickleType, Future] {
         override def apply(request: Request[PickleType]): Future[PickleType] = {
-          println("WOLF " + request)
+          println(request)
           Backend.router(request) match {
             case Right(result) => result
             case Left(err) => Future.failed(new Exception(err.toString))
