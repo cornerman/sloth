@@ -142,28 +142,8 @@ object TraitMacro {
     val traitPathPart = getPathName(TypeRepr.of[Trait].typeSymbol)
 
     def decls(cls: Symbol): List[Symbol] = methods.map { method =>
-      //TODO: use: https://github.com/lampepfl/dotty/pull/15024
-      method.tree.changeOwner(cls) match {
-        case DefDef(name, clauses, typedTree,_) =>
-          val tpeRepr = TypeRepr.of(using typedTree.tpe.asType)
-
-          val methodType = if (clauses.isEmpty) {
-            // nullary methods
-            ByNameType(tpeRepr)
-          } else {
-            // non-nullary methods with parameters
-            clauses.foldRight[TypeRepr](tpeRepr) { (clause, tpe) =>
-              val names = clause.params.collect { case v: ValDef => v.name }
-              val tpes = clause.params.collect { case v: ValDef => v.tpt.tpe }
-
-              MethodType(names)(_ => tpes, _ => tpe)
-            }
-          }
-
-          Symbol.newMethod(cls, name, methodType, flags = Flags.EmptyFlags /*TODO: method.flags */, privateWithin = method.privateWithin.fold(Symbol.noSymbol)(_.typeSymbol))
-        case _ =>
-          report.errorAndAbort(s"Cannot detect type of method: ${method.name}", method.tree.pos)
-      }
+      val methodType = TypeRepr.of[Trait].memberType(method)
+      Symbol.newMethod(cls, method.name, methodType, flags = Flags.EmptyFlags /*TODO: method.flags */, privateWithin = method.privateWithin.fold(Symbol.noSymbol)(_.typeSymbol))
     }
 
     val parents = List(TypeTree.of[Object], TypeTree.of[Trait])
