@@ -16,14 +16,10 @@ This library is inspired by [autowire](https://github.com/lihaoyi/autowire). Som
 
 Get latest release:
 ```scala
-libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.6.6"
+libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.7.0"
 ```
 
-Or get development snapshots via jitpack:
-```scala
-resolvers += "jitpack" at "https://jitpack.io"
-libraryDependencies += "com.github.cornerman.sloth" %%% "sloth" % "master-SNAPSHOT"
-```
+We additonally publish snapshot releases for every commit.
 
 ## Example usage
 
