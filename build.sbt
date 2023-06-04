@@ -1,11 +1,10 @@
-// shadow sbt-scalajs' crossProject and CrossType from Scala.js 0.6.x
-import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
+Global / onChangedBuildSource := IgnoreSourceChanges
 
 inThisBuild(Seq(
   organization := "com.github.cornerman",
 
-  scalaVersion := "2.12.17",
-  crossScalaVersions := Seq("2.12.17", "2.13.10"),
+  crossScalaVersions := Seq("2.13.10", "3.3.0"),
+  scalaVersion := crossScalaVersions.value.head,
 
   licenses := Seq("MIT License" -> url("https://opensource.org/licenses/MIT")),
 
@@ -35,6 +34,10 @@ lazy val commonSettings = Seq(
 )
 
 lazy val jsSettings = Seq(
+  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+    case Some((3, _)) => Seq("-scalajs")
+    case _ => Seq.empty
+  }),
 )
 
 enablePlugins(ScalaJSPlugin)
@@ -56,12 +59,14 @@ lazy val sloth = crossProject(JSPlatform, JVMPlatform)
   .settings(commonSettings)
   .settings(
     name := "sloth",
+    libraryDependencies ++= (CrossVersion.partialVersion(scalaVersion.value) match {
+      case Some((3, _)) => Seq.empty
+      case _ => Seq(Deps.scalaReflect.value % scalaVersion.value % Provided)
+    }),
     libraryDependencies ++=
-      Deps.scalaReflect.value % scalaVersion.value % Provided ::
       Deps.cats.value ::
       Deps.chameleon.value ::
 
-      Deps.kittens.value % Test ::
       Deps.circe.core.value % Test ::
       Deps.circe.generic.value % Test ::
       Deps.circe.parser.value % Test ::

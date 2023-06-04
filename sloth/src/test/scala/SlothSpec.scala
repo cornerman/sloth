@@ -1,19 +1,16 @@
-package test.sloth
+package test
 
-import scala.concurrent.Future
+import scala.annotation.unused
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 import sloth._
+import cats.Functor
 import cats.implicits._
 
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.must.Matchers
 import chameleon.ext.circe._
 import io.circe.generic.auto._
-
-object Pickling {
-  type PickleType = String
-}
-import Pickling._
 
 trait EmptyApi
 object EmptyApi extends EmptyApi
@@ -22,9 +19,19 @@ case class TwoInts(a:Int, b:Int)
 trait SingleApi {
   def foo(a: Int, b: Int): Future[Int] = foo(TwoInts(a,b))
   def foo(ints: TwoInts): Future[Int]
+  // should not compile because of wrong return type
+  // def bum(a: Int): Option[Int]
+  // should not compile because of generic parameter
+  // def bom[T](a: T): Future[Int]
+  @PathName("kanone") // does not compile without PathName, because overloaded
+  def foo: Future[Int]
 }
 object SingleApiImpl extends SingleApi {
+  def foo: Future[Int] = Future.successful(13)
   def foo(ints: TwoInts): Future[Int] = Future.successful(ints.a + ints.b)
+
+  def bum(@unused a: Int): Option[Int] = Some(1)
+  def bom[T](@unused a: T): Future[Int] = Future.successful(1)
 }
 
 trait OneApi[F[_]] {
@@ -63,6 +70,11 @@ object ApiImplFuture extends Api[Future] {
 }
 //or
 case class ApiResult[T](event: String, result: Future[T])
+object ApiResult {
+  implicit def functor(implicit ec: ExecutionContext): Functor[ApiResult] = new Functor[ApiResult] {
+    def map[A,B](fa: ApiResult[A])(f: A => B): ApiResult[B] = fa.copy(result = fa.result.map(f))
+  }
+}
 object ApiImplResponse extends Api[ApiResult] {
   def simple: ApiResult[Int] = ApiResult("peter", Future.successful(1))
   def simpleBracket(): ApiResult[Int] = ApiResult("peter", Future.successful(1))
@@ -73,7 +85,13 @@ object ApiImplResponse extends Api[ApiResult] {
   def multi2(a: Int, b: String)(c: Double): ApiResult[Int] = ApiResult("hans", Future.successful(a + c.toInt))
 }
 //or
-object TypeHelper { type ApiResultFun[T] = Int => ApiResult[T] }
+object TypeHelper {
+  type ApiResultFun[T] = Int => ApiResult[T]
+
+  implicit def functor(implicit ec: ExecutionContext): Functor[ApiResultFun] = new Functor[ApiResultFun] {
+    def map[A,B](fa: ApiResultFun[A])(f: A => B): ApiResultFun[B] = i => Functor[ApiResult].map(fa(i))(f)
+  }
+}
 import TypeHelper._
 object ApiImplFunResponse extends Api[ApiResultFun] {
   def simple: ApiResultFun[Int] = i => ApiResult("peter", Future.successful(i))
@@ -86,12 +104,11 @@ object ApiImplFunResponse extends Api[ApiResultFun] {
 }
 
 class SlothSpec extends AsyncFreeSpec with Matchers {
-  import cats.derived.auto.functor._
 
   "run simple" in {
     object Backend {
       val router = Router[PickleType, Future]
-        .route(EmptyApi)
+        .route[EmptyApi](EmptyApi)
         .route[Api[Future]](ApiImplFuture)
         .route[SingleApi](SingleApiImpl)
     }
@@ -122,12 +139,14 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
       _ = single mustEqual 1
       foo <- Frontend.singleApi.foo(1, 2)
       _ = foo mustEqual 3
+      foo2 <- Frontend.singleApi.foo
+      _ = foo2 mustEqual 13
       fun <- Frontend.api.fun(1)
       _ = fun mustEqual 1
     } yield succeed
   }
 
- "run different result types" in {
+  "run different result types" in {
     import cats.data.EitherT
 
     sealed trait ApiError
@@ -146,13 +165,15 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
 
     object Frontend {
       object Transport extends RequestTransport[PickleType, ClientResult] {
-        override def apply(request: Request[PickleType]): ClientResult[PickleType] = EitherT(
+        override def apply(request: Request[PickleType]): ClientResult[PickleType] = EitherT {
+          println(request)
           Backend.router(request) match {
             case Right(ApiResult(event@_, result)) =>
               result.map(Right(_)).recover { case NonFatal(t) => Left(UnexpectedError(t.getMessage)) }
             case Left(err) => Future.successful(Left(SlothServerError(err)))
-          })
           }
+        }
+      }
 
       val client = Client[PickleType, ClientResult](Transport)
       val api = client.wire[Api[ClientResult]]
@@ -170,7 +191,7 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
     } yield succeed
   }
 
- "run different result types with fun" in {
+  "run different result types with fun" in {
 
     object Backend {
       val router = Router[PickleType, ApiResultFun]
@@ -179,9 +200,11 @@ class SlothSpec extends AsyncFreeSpec with Matchers {
 
     object Frontend {
       object Transport extends RequestTransport[PickleType, Future] {
-        override def apply(request: Request[PickleType]): Future[PickleType] =
+        override def apply(request: Request[PickleType]): Future[PickleType] = {
+          println(request)
           Backend.router(request).fold(err => Future.failed(new Exception(err.toString)), _(10).result)
         }
+      }
 
       val client = Client[PickleType, Future](Transport)
       val api = client.wire[Api[Future]]
