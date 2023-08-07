@@ -1,26 +1,25 @@
 # sloth :sloth:
-[![Build Status](https://travis-ci.org/cornerman/sloth.svg?branch=master)](https://travis-ci.org/cornerman/sloth) [![Gitter](https://badges.gitter.im/sloth-api/community.svg)](https://gitter.im/sloth-api/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![sloth Scala version support](https://index.scala-lang.org/cornerman/sloth/sloth/latest-by-scala-version.svg?platform=sjs1)](https://index.scala-lang.org/cornerman/sloth/sloth)
+[![sloth Scala version support](https://index.scala-lang.org/cornerman/sloth/sloth/latest-by-scala-version.svg?platform=jvm)](https://index.scala-lang.org/cornerman/sloth/sloth)
 
-Type safe RPC in scala
+Type safe RPC in scala (scala 2 and scala 3)
 
 Sloth is essentially a pair of macros (server and client) which takes an API definition in the form of a scala trait and then generates code for routing in the server as well as generating an API implementation in the client.
 
 This library is inspired by [autowire](https://github.com/lihaoyi/autowire). Some differences:
 * No macro application on the call-site in the client (`.call()`), just one macro for creating an instance of an API trait
-* Return types of Api traits are not restricted to `Future`. You can use any higher-kinded generic return types (`cats.Functor` (or `cats.data.Kleisli` with `cats.ApplicativeError`) in server, `cats.MonadError` (or `cats.data.Kleisli` with `cats.ApplicativeError`) in client)
+* Return types of Api traits are not restricted to `Future`. You can use any higher-kinded generic return types:
+  - Server: `cats.Functor` (or `cats.data.Kleisli` with `cats.ApplicativeError`)
+  - Client: `cats.MonadError` (or `cats.data.Kleisli` with `cats.ApplicativeError`)
 
 ## Get started
 
 Get latest release:
 ```scala
-libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.6.6"
+libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.7.0"
 ```
 
-Or get development snapshots via jitpack:
-```scala
-resolvers += "jitpack" at "https://jitpack.io"
-libraryDependencies += "com.github.cornerman.sloth" %%% "sloth" % "master-SNAPSHOT"
-```
+We additonally publish snapshot releases for every commit.
 
 ## Example usage
 
@@ -262,6 +261,8 @@ new Api {
 ```
 
 ## Experimental: Checksum for Apis
+
+Currently scala-2 only.
 
 In order to check the compatability of the client and server Api trait, you can calculate a checksum of your Api:
 

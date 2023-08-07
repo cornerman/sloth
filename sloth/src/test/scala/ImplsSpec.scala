@@ -1,4 +1,4 @@
-package test.sloth
+package test
 
 import sloth._
 import cats._
@@ -7,8 +7,6 @@ import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.must.Matchers
 import chameleon.ext.circe._
 import io.circe.generic.auto._
-
-import Pickling._
 
 case class Argument(value: Int)
 

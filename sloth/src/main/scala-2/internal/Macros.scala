@@ -43,6 +43,11 @@ class Translator[C <: Context](val c: C) {
     case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.PathName] => name.toString
   }
 
+  private def eitherSeq[A, B](list: List[Either[A, B]]): Either[List[A], List[B]] = list.partition(_.isLeft) match {
+    case (Nil, rights) => Right(for (Right(i) <- rights) yield i)
+    case (lefts, _)    => Left(for (Left(s) <- lefts) yield s)
+  }
+
   def definedMethodsInType(tpe: Type): List[(MethodSymbol, Type)] = for {
     member <- tpe.members.toList
     if member.isAbstract
