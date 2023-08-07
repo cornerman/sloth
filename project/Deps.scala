@@ -5,12 +5,12 @@ import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport._
 object Deps {
   import Def.{setting => dep}
 
+  val scalaTest = dep("org.scalatest" %%% "scalatest" % "3.2.16")
+
   val scalaReflect = dep("org.scala-lang" % "scala-reflect")
   val cats = dep("org.typelevel" %%% "cats-core" % "2.9.0")
-  val chameleon = dep("com.github.cornerman" %%% "chameleon" % "0.3.5")
+  val chameleon = dep("com.github.cornerman" %%% "chameleon" % "0.3.6")
 
-  val scalaTest = dep("org.scalatest" %%% "scalatest" % "3.2.14")
-  val kittens = dep("org.typelevel" %%% "kittens" % "3.0.0")
   val circe = new {
     private val version = "0.14.1"
     val core = dep("io.circe" %%% "circe-core" % version)
