@@ -60,11 +60,20 @@ private def getInnerTypeOutOfReturnType[Trait: Type, Result[_]: Type](using Quot
       tpe.typeArgs.indexWhere(_ =:= firstParamType)
     case _ => -1
   }
- 
+
   val methodReturnType = getMethodType[Trait](method)
   parameterTypeIndex match {
     case -1 => methodReturnType.typeArgs.last
     case index => methodReturnType.typeArgs(index)
+  }
+}
+
+def createTypeTreeTuple(using Quotes)(tupleTypesList: List[quotes.reflect.TypeRepr]): quotes.reflect.TypeRepr = {
+  import quotes.reflect.*
+
+  tupleTypesList match {
+    case Nil => TypeRepr.of[EmptyTuple]
+    case head :: tail => TypeRepr.of[*:].appliedTo(List(head, createTypeTreeTuple(tail)))
   }
 }
 
@@ -167,11 +176,18 @@ object TraitMacro {
               case arg :: Nil => arg.asExpr
               case allArgs => Expr.ofTupleFromSeq(allArgs.map(_.asExpr))
             }
-              
+
+            val tupleTypesList = origMethod.paramSymss.flatten.map(_.tree.asInstanceOf[ValDef].tpt.tpe)
+            val tupleType = tupleTypesList match {
+              case Nil => TypeRepr.of[Unit]
+              case head :: Nil => head
+              case tupleTypesList => createTypeTreeTuple(tupleTypesList)
+            }
+
             val returnType = getInnerTypeOutOfReturnType[Trait, Result](method)
 
             val clientImplType = TypeRepr.of[ClientImpl[PickleType, Result]].typeSymbol
-            val tupleTypeTree = TypeTree.of(using tupleExpr.asTerm.tpe.asType)
+            val tupleTypeTree = TypeTree.of(using tupleType.asType)
             val returnTypeTree = TypeTree.of(using returnType.asType)
 
             Apply(
@@ -232,14 +248,10 @@ object RouterMacro {
         val path = traitPathPart :: methodPathPart :: Nil
 
         val pathExpr = Expr(path)
-        val tupleTypesList = method.paramSymss.flatten.map(_.tree.asInstanceOf[ValDef].tpt.tpe)
-        
-        def createTypeTreeTuple(tupleTypesList: List[TypeRepr]): TypeRepr = tupleTypesList match {
-          case Nil => TypeRepr.of[EmptyTuple]
-          case head :: tail => TypeRepr.of[*:].appliedTo(List(head, createTypeTreeTuple(tail)))
-        }
-        
+
         val returnType = getInnerTypeOutOfReturnType[Trait, Result](method)
+
+        val tupleTypesList = method.paramSymss.flatten.map(_.tree.asInstanceOf[ValDef].tpt.tpe)
         val tupleType = tupleTypesList match {
           case Nil => TypeRepr.of[Unit]
           case head :: Nil => head
