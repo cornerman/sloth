@@ -5,7 +5,7 @@ import org.portablescala.sbtplatformdeps.PlatformDepsPlugin.autoImport._
 object Deps {
   import Def.{setting => dep}
 
-  val scalaTest = dep("org.scalatest" %%% "scalatest" % "3.2.16")
+  val scalaTest = dep("org.scalatest" %%% "scalatest" % "3.2.17")
 
   val scalaReflect = dep("org.scala-lang" % "scala-reflect")
   val cats = dep("org.typelevel" %%% "cats-core" % "2.10.0")
