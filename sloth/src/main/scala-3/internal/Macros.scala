@@ -106,7 +106,7 @@ private def checkMethodErrors[Trait: Type, Result[_]: Type](using q: Quotes)(met
   import quotes.reflect.*
 
   val duplicateErrors = methods.groupBy(m => (getPathName(m), getMeta(m))).collect { case ((name, meta), symbols) if symbols.size > 1 =>
-    val message = s"Method $name (meta=$meta) is overloaded, please rename one of the methods or use the PathName or Meta annotation to disambiguate"
+    val message = s"""Method $name (meta=$meta) is overloaded (rename the method or add @PathName("other-name") or @MetaName("meta-name") or a @Meta annotation)"""
     (message, symbols.flatMap(_.pos).lastOption)
   }
 

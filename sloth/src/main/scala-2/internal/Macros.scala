@@ -41,7 +41,7 @@ class Translator[C <: Context](val c: C) {
   private def validateAllMethods(methods: List[(MethodSymbol, Type)]): List[Either[String, (MethodSymbol, Type)]] =
     methods.groupBy(m => methodPathInfo(m._1)).map {
       case (_, x :: Nil) => Right(x)
-      case (k, _) => Left(s"""method $k is overloaded (rename the method or add a @PathName("other-name"))""")
+      case ((name,meta), _) => Left(s"""Method $name (meta=$meta) is overloaded (rename the method or add @PathName("other-name") or @MetaName("meta-name") or a @Meta annotation)""")
     }.toList
 
   private def findPathName(annotations: Seq[Annotation]) = annotations.reverse.map(_.tree).collectFirst {
