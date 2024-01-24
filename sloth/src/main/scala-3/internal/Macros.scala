@@ -7,10 +7,17 @@ import scala.annotation.meta.param
 import scala.NonEmptyTuple
 import scala.quoted.runtime.StopMacroExpansion
 
+private implicit val toExprVectorString: ToExpr[Vector[String]] = new ToExpr[Vector[String]] {
+  def apply(vector: Vector[String])(using Quotes): Expr[Vector[String]] = {
+    import quotes.reflect._
+    '{Vector(${Varargs(vector.map(Expr(_)))}: _*)}
+  }
+}
+
 private implicit val toExprRequestPath: ToExpr[RequestPath] = new ToExpr[RequestPath] {
   def apply(path: RequestPath)(using Quotes): Expr[RequestPath] = {
     import quotes.reflect._
-    '{ RequestPath(${Expr(path.apiName)}, ${Expr(path.methodName)}) }
+    '{ RequestPath(${Expr(path.apiName)}, ${Expr(path.methodName)}, ${Expr(path.meta)}) }
   }
 }
 
@@ -21,6 +28,17 @@ private def getPathName(using Quotes)(symbol: quotes.reflect.Symbol): String = {
     case Apply(Select(New(annotation), _), Literal(constant) :: Nil) if annotation.tpe =:= TypeRepr.of[PathName] =>
       constant.value.asInstanceOf[String]
   }.getOrElse(symbol.name)
+}
+
+private def getMeta(using Quotes)(symbol: quotes.reflect.Symbol): Vector[String] = {
+  import quotes.reflect.*
+
+  symbol.annotations.collect {
+    case Apply(Select(New(annotation), _), _) if annotation.tpe <:< TypeRepr.of[Meta] =>
+      annotation.tpe.typeSymbol.name
+    case Apply(Select(New(annotation), _), Literal(constant) :: Nil) if annotation.tpe =:= TypeRepr.of[MetaName] =>
+      constant.value.asInstanceOf[String]
+  }.toVector
 }
 
 private def getTypeConstructor(using Quotes)(tpe: quotes.reflect.TypeRepr): quotes.reflect.TypeRepr = {
@@ -87,8 +105,8 @@ def createTypeTreeTuple(using Quotes)(tupleTypesList: List[quotes.reflect.TypeRe
 private def checkMethodErrors[Trait: Type, Result[_]: Type](using q: Quotes)(methods: Seq[quotes.reflect.Symbol]): Unit = {
   import quotes.reflect.*
 
-  val duplicateErrors = methods.groupBy(getPathName).collect { case (name, symbols) if symbols.size > 1 =>
-    val message = s"Method $name is overloaded, please rename one of the methods or use the PathName annotation to disambiguate"
+  val duplicateErrors = methods.groupBy(m => (getPathName(m), getMeta(m))).collect { case ((name, meta), symbols) if symbols.size > 1 =>
+    val message = s"Method $name (meta=$meta) is overloaded, please rename one of the methods or use the PathName or Meta annotation to disambiguate"
     (message, symbols.flatMap(_.pos).lastOption)
   }
 
@@ -156,6 +174,7 @@ object TraitMacro {
     checkMethodErrors[Trait, Result](methods)
 
     val traitPathPart = getPathName(TypeRepr.of[Trait].typeSymbol)
+    val traitMeta = getMeta(TypeRepr.of[Trait].typeSymbol)
 
     def decls(cls: Symbol): List[Symbol] = methods.map { method =>
       val methodType = TypeRepr.of[Trait].memberType(method)
@@ -168,7 +187,8 @@ object TraitMacro {
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
       val body = (cls.declaredMethods.zip(methods)).map { case (method, origMethod) =>
         val methodPathPart = getPathName(origMethod)
-        val path = RequestPath(traitPathPart, methodPathPart)
+        val methodMeta = getMeta(origMethod)
+        val path = RequestPath(traitPathPart, methodPathPart, traitMeta ++ methodMeta)
         val pathExpr = Expr(path)
 
         DefDef(method, { argss =>
@@ -245,6 +265,7 @@ object RouterMacro {
     checkMethodErrors[Trait, Result](methods)
 
     val traitPathPart = getPathName(TypeRepr.of[Trait].typeSymbol)
+    val traitMeta = getMeta(TypeRepr.of[Trait].typeSymbol)
 
     type FunctionInput = PickleType
     type FunctionOutput = Either[ServerFailure, Result[PickleType]]
@@ -252,7 +273,8 @@ object RouterMacro {
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
       val methodDefinitions = methods.map { method =>
         val methodPathPart = getPathName(method)
-        val path = RequestPath(traitPathPart, methodPathPart)
+        val methodMeta = getMeta(method)
+        val path = RequestPath(traitPathPart, methodPathPart, traitMeta ++ methodMeta)
         val pathExpr = Expr(path)
 
         val returnType = getInnerTypeOutOfReturnType[Trait, Result](method)

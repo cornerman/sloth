@@ -19,8 +19,9 @@ class Translator[C <: Context](val c: C) {
   import Validator._
 
   object implicits {
-    implicit val liftRequestPath: Liftable[RequestPath] =
-      Liftable[RequestPath]{ r => q"new _root_.sloth.RequestPath(${r.apiName}, ${r.methodName})" }
+    implicit val liftRequestPath: Liftable[RequestPath] = Liftable[RequestPath] { r =>
+      q"new _root_.sloth.RequestPath(${r.apiName}, ${r.methodName})"
+    }
   }
 
   def abort(msg: String) = c.abort(c.enclosingPosition, msg)
@@ -38,7 +39,7 @@ class Translator[C <: Context](val c: C) {
 
   //TODO rename overloaded methods to fun1, fun2, fun3 or append TypeSignature instead of number?
   private def validateAllMethods(methods: List[(MethodSymbol, Type)]): List[Either[String, (MethodSymbol, Type)]] =
-    methods.groupBy(m => methodPathPart(m._1)).map {
+    methods.groupBy(m => methodPathInfo(m._1)).map {
       case (_, x :: Nil) => Right(x)
       case (k, _) => Left(s"""method $k is overloaded (rename the method or add a @PathName("other-name"))""")
     }.toList
@@ -46,6 +47,11 @@ class Translator[C <: Context](val c: C) {
   private def findPathName(annotations: Seq[Annotation]) = annotations.reverse.map(_.tree).collectFirst {
     case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.PathName] => name.toString
   }
+
+  private def findMeta(annotations: Seq[Annotation]) = annotations.map(_.tree).collect {
+    case Apply(Select(New(annotation), _), _) if annotation.tpe <:< typeOf[sloth.Meta] => annotation.tpe.typeSymbol.name.toString
+    case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.MetaName] => name.toString
+  }.toVector
 
   private def eitherSeq[A, B](list: List[Either[A, B]]): Either[List[A], List[B]] = list.partition(_.isLeft) match {
     case (Nil, rights) => Right(for (Right(i) <- rights) yield i)
@@ -75,11 +81,17 @@ class Translator[C <: Context](val c: C) {
   }
 
   //TODO what about fqn for trait to not have overlaps?
-  def traitPathPart(tpe: Type): String =
-    findPathName(tpe.typeSymbol.annotations).getOrElse(tpe.typeSymbol.name.toString)
+  def traitPathInfo(tpe: Type): (String, Vector[String]) =
+    (
+      findPathName(tpe.typeSymbol.annotations).getOrElse(tpe.typeSymbol.name.toString),
+      findMeta(tpe.typeSymbol.annotations)
+    )
 
-  def methodPathPart(m: MethodSymbol): String =
-    findPathName(m.annotations).getOrElse(m.name.toString)
+  def methodPathInfo(m: MethodSymbol): (String, Vector[String]) =
+    (
+      findPathName(m.annotations).getOrElse(m.name.toString),
+      findMeta(m.annotations)
+    )
 
   def paramAsValDef(p: Symbol): ValDef = q"val ${p.name.toTermName}: ${p.typeSignature}"
   def paramsAsValDefs(m: Type): List[List[ValDef]] = m.paramLists.map(_.map(paramAsValDef))
@@ -134,10 +146,10 @@ object TraitMacro {
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val traitPathPart = t.traitPathPart(traitTag.tpe)
+    val (traitPathPart, traitMeta) = t.traitPathInfo(traitTag.tpe)
     val methodImplList = validMethods.collect { case (symbol, method) =>
-      val methodPathPart = t.methodPathPart(symbol)
-      val path = RequestPath(traitPathPart, methodPathPart)
+      val (methodPathPart, methodMeta) = t.methodPathInfo(symbol)
+      val path = RequestPath(traitPathPart, methodPathPart, traitMeta ++ methodMeta)
       val parameters =  t.paramsAsValDefs(method)
       val paramsType = t.paramsType(method)
       val paramListValue = t.wrapAsParamsType(method)
@@ -189,10 +201,10 @@ object RouterMacro {
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
-    val traitPathPart = t.traitPathPart(traitTag.tpe)
+    val (traitPathPart, traitMeta) = t.traitPathInfo(traitTag.tpe)
     val methodTuples = validMethods.map { case (symbol, method) =>
-      val methodPathPart = t.methodPathPart(symbol)
-      val path = RequestPath(traitPathPart, methodPathPart)
+      val (methodPathPart, methodMeta) = t.methodPathInfo(symbol)
+      val path = RequestPath(traitPathPart, methodPathPart, traitMeta ++ methodMeta)
       val paramsType = t.paramsType(method)
       val argParams = t.objectToParams(method, TermName("args"))
       val innerReturnType = t.getInnerTypeOutOfReturnType(resultTag.tpe, method.finalResultType)
@@ -242,10 +254,10 @@ object ChecksumMacro {
     case class ParamSignature(name: String, tpe: Type) {
       def checksum: Int = (name, typeChecksum(tpe)).hashCode
     }
-    case class MethodSignature(name: String, params: List[ParamSignature], result: Type) {
-      def checksum: Int = (name, params.map(_.checksum), typeChecksum(result)).hashCode
+    case class MethodSignature(name: String, meta: Seq[String], params: List[ParamSignature], result: Type) {
+      def checksum: Int = (name, meta, params.map(_.checksum), typeChecksum(result)).hashCode
     }
-    case class ApiSignature(name: String, methods: Set[MethodSignature]) {
+    case class ApiSignature(name: String, meta: Seq[String], methods: Set[MethodSignature]) {
       def checksum: Int = (name, methods.map(_.checksum)).hashCode
     }
 
@@ -279,21 +291,21 @@ object ChecksumMacro {
         tpe.typeSymbol.fullName,
         caseAccessors.map(a => (a.name.toString, typeChecksum(a.typeSignatureIn(tpe).finalResultType))),
         directSubClasses.map(typeChecksum).toSet
-        ).hashCode
+      ).hashCode
     }
 
     val definedMethods = t.definedMethodsInType(traitTag.tpe)
 
-    val dataMethods:Set[MethodSignature] = definedMethods.map { case (symbol, method) =>
-      val name = t.methodPathPart(symbol)
+    val dataMethods: Set[MethodSignature] = definedMethods.map { case (symbol, method) =>
+      val (name, meta) = t.methodPathInfo(symbol)
       val resultType = method.finalResultType
       val params = paramsOfType(method)
 
-      MethodSignature(name, params, resultType)
+      MethodSignature(name, meta, params, resultType)
     }.toSet
 
-    val name = t.traitPathPart(traitTag.tpe)
-    val apiSignature = ApiSignature(name, dataMethods)
+    val (name, meta) = t.traitPathInfo(traitTag.tpe)
+    val apiSignature = ApiSignature(name, meta, dataMethods)
 
     val checksum = apiSignature.checksum
 
