@@ -33,13 +33,6 @@ lazy val commonSettings = Seq(
   }),
 )
 
-lazy val jsSettings = Seq(
-  scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((3, _)) => Seq("-scalajs")
-    case _ => Seq.empty
-  }),
-)
-
 enablePlugins(ScalaJSPlugin)
 
 lazy val types = crossProject(JSPlatform, JVMPlatform)
@@ -51,7 +44,7 @@ lazy val types = crossProject(JSPlatform, JVMPlatform)
     libraryDependencies ++=
       Deps.cats.value ::
       Nil
-  ).jsSettings(jsSettings)
+  )
 
 lazy val sloth = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
@@ -73,4 +66,4 @@ lazy val sloth = crossProject(JSPlatform, JVMPlatform)
       Deps.circe.parser.value % Test ::
       Deps.scalaTest.value % Test ::
       Nil
-  ).jsSettings(jsSettings)
+  )
