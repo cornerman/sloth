@@ -15,36 +15,33 @@ trait Router[PickleType, Result[_]] {
       case None => Left(ServerFailure.PathNotFound(request.path))
     }
 
-  def getFunction(path: List[String]): Option[PickleType => Either[ServerFailure, Result[PickleType]]] =
-    path match {
-      case apiName :: methodName :: Nil => apiMap.get(apiName).flatMap(_.get(methodName))
-      case _ => None
-    }
+  def getFunction(path: RequestPath): Option[PickleType => Either[ServerFailure, Result[PickleType]]] =
+    apiMap.get(path)
 
-  def orElse(name: String, value: Router.ApiMapValue[PickleType, Result]): Router[PickleType, Result]
+  def orElse(value: Router.ApiMap[PickleType, Result]): Router[PickleType, Result]
 }
 
 class RouterCo[PickleType, Result[_]](private[sloth] val logger: LogHandler[Result], protected val apiMap: Router.ApiMap[PickleType, Result])(implicit
   private[sloth] val functor: Functor[Result]
   ) extends Router[PickleType, Result] with PlatformSpecificRouterCo[PickleType, Result] {
 
-  def orElse(name: String, value: Router.ApiMapValue[PickleType, Result]): RouterCo[PickleType, Result] = new RouterCo(logger, apiMap + (name -> value))
+  def orElse(value: Router.ApiMap[PickleType, Result]): RouterCo[PickleType, Result] = new RouterCo(logger, apiMap ++ value)
 
-  def mapResult[R[_]: Functor](f: Result ~> R, logger: LogHandler[R] = LogHandler.empty[R]): Router[PickleType, R] = new RouterCo(logger, apiMap.map { case (k, v) => (k, v.map { case (k, v) => (k, v.map(_.map(f.apply))) }.toMap) }.toMap)
+  def mapResult[R[_]: Functor](f: Result ~> R, logger: LogHandler[R] = LogHandler.empty[R]): Router[PickleType, R] = new RouterCo(logger, apiMap.map { case (k, v) => (k, v.map(_.map(f.apply))) }.toMap)
 }
 
 class RouterContra[PickleType, Result[_]](private[sloth] val logger: LogHandler[Result], protected val apiMap: Router.ApiMap[PickleType, Result])(implicit
   private[sloth] val routerHandler: RouterContraHandler[Result]
   ) extends Router[PickleType, Result] with PlatformSpecificRouterContra[PickleType, Result] {
 
-  def orElse(name: String, value: Router.ApiMapValue[PickleType, Result]): RouterContra[PickleType, Result] = new RouterContra(logger, apiMap + (name -> value))
+  def orElse(value: Router.ApiMap[PickleType, Result]): RouterContra[PickleType, Result] = new RouterContra(logger, apiMap ++ value)
 
-  def mapResult[R[_]: RouterContraHandler](f: Result ~> R, logger: LogHandler[R] = LogHandler.empty[R]): Router[PickleType, R] = new RouterContra(logger, apiMap.map { case (k, v) => (k, v.map { case (k, v) => (k, v.map(_.map(f.apply))) }.toMap) }.toMap)
+  def mapResult[R[_]: RouterContraHandler](f: Result ~> R, logger: LogHandler[R] = LogHandler.empty[R]): Router[PickleType, R] = new RouterContra(logger, apiMap.map { case (k, v) => (k, v.map(_.map(f.apply))) }.toMap)
 }
 
 object Router {
-  type ApiMapValue[PickleType, Result[_]] = Map[String, PickleType => Either[ServerFailure, Result[PickleType]]]
-  type ApiMap[PickleType, Result[_]] = Map[String, ApiMapValue[PickleType, Result]]
+  type ApiFunction[PickleType, Result[_]] = PickleType => Either[ServerFailure, Result[PickleType]]
+  type ApiMap[PickleType, Result[_]] = Map[RequestPath, ApiFunction[PickleType, Result]]
 
   def apply[PickleType, Result[_]: Functor]: RouterCo[PickleType, Result] = apply(LogHandler.empty[Result])
   def apply[PickleType, Result[_]: Functor](logger: LogHandler[Result]): RouterCo[PickleType, Result] = new RouterCo[PickleType, Result](logger, Map.empty)
