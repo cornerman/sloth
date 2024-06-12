@@ -260,6 +260,45 @@ new Api {
 }
 ```
 
+## Integrations
+
+### http4s
+
+Use with:
+```
+libraryDependencies += "com.github.cornerman" %%% "sloth-http4s-server" % "0.7.1"
+libraryDependencies += "com.github.cornerman" %%% "sloth-http4s-client" % "0.7.1"
+```
+
+On the server:
+```scala
+import sloth.Router
+import sloth.ext.http4s.server.HttpRpcRoutes
+
+// for usual rpc
+val router = Router[String, IO]
+val rpcRoutes: HttpRoutes[IO] = HttpRpcRoutes[String, IO](router)
+
+// for server sent event over rpc
+val router = Router[String, fs2.Stream[IO, *]]
+val rpcRoutes: HttpRoutes[IO] = HttpRpcRoutes.eventStream[IO](router)
+```
+
+In the client:
+```scala
+import sloth.Client
+import sloth.ext.http4s.client.HttpRpcTransport
+
+// for usual rpc
+val client = Client[String, IO](HttpRpcTransport[String, IO])
+val api: MyApi[IO] = client.wire[MyApi[IO]]
+
+// for server sent events over rpc
+val client = Client[String, fs2.Stream[IO, *]](HttpRpcTransport.eventStream[IO])
+val api: MyApi[fs2.Stream[IO, *]] = client.wire[MyApi[fs2.Stream[IO, *]]]
+
+```
+
 ## Experimental: Checksum for Apis
 
 Currently scala-2 only.

@@ -74,3 +74,27 @@ lazy val sloth = crossProject(JSPlatform, JVMPlatform)
       Deps.scalaTest.value % Test ::
       Nil
   ).jsSettings(jsSettings)
+
+lazy val http4sClient = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .dependsOn(sloth)
+  .settings(commonSettings)
+  .settings(
+    name := "sloth-http4s-client",
+    libraryDependencies ++=
+      Deps.http4s.core.value ::
+      Deps.http4s.client.value ::
+      Nil
+  ).jsSettings(jsSettings)
+
+lazy val http4sServer = crossProject(JSPlatform, JVMPlatform)
+  .crossType(CrossType.Pure)
+  .dependsOn(sloth)
+  .settings(commonSettings)
+  .settings(
+    name := "sloth-http4s-server",
+    libraryDependencies ++=
+      Deps.http4s.core.value ::
+      Deps.http4s.dsl.value ::
+      Nil
+  ).jsSettings(jsSettings)
