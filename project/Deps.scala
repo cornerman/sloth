@@ -20,4 +20,11 @@ object Deps {
     val parser = dep("io.circe" %%% "circe-parser" % version)
     val shapes = dep("io.circe" %%% "circe-shapes" % version)
   }
+
+  val http4s = new {
+    private val version = "0.23.24"
+    val core = dep("org.http4s" %%% "http4s-core" % version)
+    val dsl = dep("org.http4s" %%% "http4s-dsl" % version)
+    val client = dep("org.http4s" %%% "http4s-client" % version)
+  }
 }
