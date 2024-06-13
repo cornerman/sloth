@@ -16,7 +16,7 @@ This library is inspired by [autowire](https://github.com/lihaoyi/autowire). Som
 
 Get latest release:
 ```scala
-libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.7.2"
+libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.7.3"
 ```
 
 We additonally publish snapshot releases for every commit.
@@ -266,8 +266,8 @@ new Api {
 
 Use with:
 ```
-libraryDependencies += "com.github.cornerman" %%% "sloth-http4s-server" % "0.7.2"
-libraryDependencies += "com.github.cornerman" %%% "sloth-http4s-client" % "0.7.2"
+libraryDependencies += "com.github.cornerman" %%% "sloth-http4s-server" % "0.7.3"
+libraryDependencies += "com.github.cornerman" %%% "sloth-http4s-client" % "0.7.3"
 ```
 
 On the server:
