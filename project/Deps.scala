@@ -9,6 +9,7 @@ object Deps {
 
   val scalaReflect = dep("org.scala-lang" % "scala-reflect")
   val cats = dep("org.typelevel" %%% "cats-core" % "2.12.0")
+  val catsEffect = dep("org.typelevel" %%% "cats-effect" % "3.5.4")
   val chameleon = dep("com.github.cornerman" %%% "chameleon" % "0.4.1")
 
   val zioJson = dep("dev.zio" %%% "zio-json" % "0.7.0")
@@ -27,4 +28,6 @@ object Deps {
     val dsl = dep("org.http4s" %%% "http4s-dsl" % version)
     val client = dep("org.http4s" %%% "http4s-client" % version)
   }
+
+  val scalaJsDom = dep("org.scala-js" %%% "scalajs-dom" % "2.8.0")
 }
