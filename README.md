@@ -299,6 +299,25 @@ val api: MyApi[fs2.Stream[IO, *]] = client.wire[MyApi[fs2.Stream[IO, *]]]
 
 ```
 
+### fetch (browser)
+
+This is useful when running in the browser, because it will have a smaller bundle-size then using the http4s client.
+
+Use with:
+```
+libraryDependencies += "com.github.cornerman" %%% "sloth-jsdom-client" % "0.7.3"
+```
+
+In the client:
+```scala
+import sloth.Client
+import sloth.ext.jsdom.client.HttpRpcTransport
+
+// for usual rpc
+val client = Client[String, IO](HttpRpcTransport[IO])
+val api: MyApi[IO] = client.wire[MyApi[IO]]
+```
+
 ## Experimental: Checksum for Apis
 
 Currently scala-2 only.

@@ -75,6 +75,19 @@ lazy val sloth = crossProject(JSPlatform, JVMPlatform)
       Nil
   ).jsSettings(jsSettings)
 
+lazy val jsdomClient = project
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(sloth.js)
+  .settings(commonSettings)
+  .settings(jsSettings)
+  .settings(
+    name := "sloth-jsdom-client",
+    libraryDependencies ++=
+      Deps.scalaJsDom.value ::
+      Deps.catsEffect.value ::
+      Nil
+  )
+
 lazy val http4sClient = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .dependsOn(sloth)
