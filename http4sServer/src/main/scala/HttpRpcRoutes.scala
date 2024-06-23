@@ -6,7 +6,7 @@ import cats.effect.Concurrent
 import org.http4s._
 import org.http4s.dsl.Http4sDsl
 import fs2.Stream
-import sloth.{Router, ServerFailure}
+import sloth.{RequestPath, Router, ServerFailure}
 
 object HttpRpcRoutes {
 
@@ -25,7 +25,7 @@ object HttpRpcRoutes {
     HttpRoutes[F] { request =>
         request.pathInfo.segments match {
           case Vector(apiName, methodName) =>
-            val path = List(apiName.decoded(), methodName.decoded())
+            val path = RequestPath(apiName.decoded(), methodName.decoded())
             val result = router(request).getFunction(path).traverse { f =>
               request.as[PickleType].flatMap { payload =>
                 f(payload) match {
@@ -56,7 +56,7 @@ object HttpRpcRoutes {
     HttpRoutes[F] { request =>
       request.pathInfo.segments match {
         case Vector(apiName, methodName) =>
-          val path = List(apiName.decoded(), methodName.decoded())
+          val path = RequestPath(apiName.decoded(), methodName.decoded())
           val result = router(request).getFunction(path).traverse { f =>
             request.as[String].flatMap { payload =>
               f(payload) match {

@@ -1,5 +1,7 @@
 package sloth.internal
 
+import sloth.RequestPath
+
 import scala.reflect.macros.blackbox.Context
 
 object Validator {
@@ -16,8 +18,10 @@ class Translator[C <: Context](val c: C) {
   import c.universe._
   import Validator._
 
-  val slothPkg = q"_root_.sloth"
-  val internalPkg = q"_root_.sloth.internal"
+  object implicits {
+    implicit val liftRequestPath: Liftable[RequestPath] =
+      Liftable[RequestPath]{ r => q"new _root_.sloth.RequestPath(${r.apiName}, ${r.methodName})" }
+  }
 
   def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
@@ -116,6 +120,7 @@ class Translator[C <: Context](val c: C) {
 object Translator {
   def apply[T](c: Context)(f: Translator[c.type] => c.Tree): c.Expr[T] = {
     val tree = f(new Translator(c))
+//    println(tree)
     c.Expr(tree)
   }
 }
@@ -125,6 +130,7 @@ object TraitMacro {
     (c: Context)
     (impl: c.Tree)
     (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = Translator(c) { t =>
+    import t.implicits._
     import c.universe._
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
@@ -132,7 +138,7 @@ object TraitMacro {
     val traitPathPart = t.traitPathPart(traitTag.tpe)
     val methodImplList = validMethods.collect { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
-      val path = traitPathPart :: methodPathPart :: Nil
+      val path = RequestPath(traitPathPart, methodPathPart)
       val parameters =  t.paramsAsValDefs(method)
       val paramsType = t.paramsType(method)
       val paramListValue = t.wrapAsParamsType(method)
@@ -184,18 +190,17 @@ object RouterMacro {
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
     val traitPathPart = t.traitPathPart(traitTag.tpe)
-    val methodTuples = validMethods.map { case (symbol, method) =>
+    val methodCases = validMethods.map { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
-      val path = traitPathPart :: methodPathPart :: Nil
       val paramsType = t.paramsType(method)
       val argParams = t.objectToParams(method, TermName("args"))
       val innerReturnType = t.getInnerTypeOutOfReturnType(resultTag.tpe, method.finalResultType)
       val payloadFunction =
-        q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsType}, $innerReturnType]($path, payload) { args =>
+        q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsType}, $innerReturnType](requestPath, payload) { args =>
           value.${symbol.name.toTermName}(...$argParams)
         }"""
 
-      q"($methodPathPart, $payloadFunction)"
+      cq"$methodPathPart => Some($payloadFunction)"
     }
 
     q"""
@@ -203,7 +208,14 @@ object RouterMacro {
       val implRouter = ${c.prefix}
       val impl = $impl
 
-      implRouter.orElse($traitPathPart, scala.collection.immutable.Map(..$methodTuples))
+      implRouter.orElse { requestPath =>
+        if (requestPath.apiName == $traitPathPart) {
+          requestPath.methodName match {
+            case ..$methodCases
+            case _ => None
+          }
+        } else None
+      }
     """
   }
 

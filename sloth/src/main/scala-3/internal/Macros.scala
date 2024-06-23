@@ -7,6 +7,13 @@ import scala.annotation.meta.param
 import scala.NonEmptyTuple
 import scala.quoted.runtime.StopMacroExpansion
 
+private implicit val toExprRequestPath: ToExpr[RequestPath] = new ToExpr[RequestPath] {
+  def apply(path: RequestPath)(using Quotes): Expr[RequestPath] = {
+    import quotes.reflect._
+    '{ RequestPath(${Expr(path.apiName)}, ${Expr(path.methodName)}) }
+  }
+}
+
 private def getPathName(using Quotes)(symbol: quotes.reflect.Symbol): String = {
   import quotes.reflect.*
 
@@ -161,7 +168,8 @@ object TraitMacro {
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
       val body = (cls.declaredMethods.zip(methods)).map { case (method, origMethod) =>
         val methodPathPart = getPathName(origMethod)
-        val path = traitPathPart :: methodPathPart :: Nil
+        val path = RequestPath(traitPathPart, methodPathPart)
+        val pathExpr = Expr(path)
 
         DefDef(method, { argss =>
           // check argss and method.paramSyms have same length outside and inside
@@ -170,7 +178,6 @@ object TraitMacro {
             argss.zip(method.paramSymss).forall { case (a,b) => a.length == b.length }
 
           Option.when(sameLength) {
-            val pathExpr = Expr(path)
             val tupleExpr = argss.flatten match {
               case Nil => '{()}
               case arg :: Nil => arg.asExpr
@@ -214,7 +221,7 @@ object TraitMacro {
       Block(List(clsDef), newCls)
     }
 
-    // println(result.show)
+//     println(result.show)
     result.asExprOf[Trait]
   }
 }
@@ -243,11 +250,9 @@ object RouterMacro {
     type FunctionOutput = Either[ServerFailure, Result[PickleType]]
 
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
-      val methodDefinitions = methods.map { method =>
+      def methodCases(requestPathTerm: Term) = methods.map { method =>
         val methodPathPart = getPathName(method)
-        val path = traitPathPart :: methodPathPart :: Nil
-
-        val pathExpr = Expr(path)
+        val path = RequestPath(traitPathPart, methodPathPart)
 
         val returnType = getInnerTypeOutOfReturnType[Trait, Result](method)
 
@@ -301,23 +306,29 @@ object RouterMacro {
                 Select(implRef, routerImplType.declaredMethod("execute").head),
                 List(tupleTypeTree, returnTypeTree)
               ),
-              List(pathExpr.asTerm, payloadArg.asExpr.asTerm)
+              List(requestPathTerm, payloadArg.asExpr.asTerm)
             ),
             List(instanceLambda)
           )
         })
 
-        '{
-          (${Expr(methodPathPart)}, ${lambda.asExprOf[FunctionInput => FunctionOutput]})
-        }
+        val caseBody = '{ Some(${lambda.asExprOf[FunctionInput => FunctionOutput]}) }
+        CaseDef(Literal(StringConstant(methodPathPart)), None, caseBody.asTerm)
       }
 
       '{
-        ${prefix}.orElse(${Expr(traitPathPart)}, Map.from(${Expr.ofList(methodDefinitions)}))
+        ${prefix}.orElse { requestPath =>
+          if (requestPath.apiName == ${Expr(traitPathPart)}) {
+            ${Match(
+              '{requestPath.methodName}.asTerm,
+              methodCases('{requestPath}.asTerm) :+ CaseDef(Wildcard(), None, '{ None }.asTerm)
+            ).asExprOf[Option[FunctionInput => FunctionOutput]]}
+          } else None
+        }
       }.asTerm
     }
 
-    // println(result.show)
+//     println(result.show)
     result.asExprOf[Router[PickleType, Result]]
   }
 }

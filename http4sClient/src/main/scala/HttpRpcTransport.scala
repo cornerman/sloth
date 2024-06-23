@@ -5,16 +5,16 @@ import cats.implicits._
 import org.http4s.client.Client
 import org.http4s.{EntityBody, EntityDecoder, EntityEncoder, Headers, HttpVersion, Method, Request, ServerSentEvent, Uri}
 import fs2.Stream
-import sloth.RequestTransport
+import sloth.{RequestPath, RequestTransport}
 
 case class HttpRequestConfig(
   baseUri: Uri = Uri(path = Uri.Path.Root),
   headers: Headers = Headers.empty,
   httpVersion: HttpVersion = HttpVersion.`HTTP/1.1`,
 ) {
-  def toRequest[F[_]](requestPath: List[String], entityBody: EntityBody[F]): Request[F] = Request[F](
+  def toRequest[F[_]](requestPath: RequestPath, entityBody: EntityBody[F]): Request[F] = Request[F](
     method = Method.POST,
-    uri = requestPath.foldLeft(baseUri)(_ / _),
+    uri = baseUri / requestPath.apiName / requestPath.methodName,
     httpVersion = httpVersion,
     headers = headers,
     body = entityBody,
