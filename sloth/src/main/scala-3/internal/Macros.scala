@@ -7,10 +7,10 @@ import scala.annotation.meta.param
 import scala.NonEmptyTuple
 import scala.quoted.runtime.StopMacroExpansion
 
-private implicit val toExprRequestPath: ToExpr[RequestPath] = new ToExpr[RequestPath] {
-  def apply(path: RequestPath)(using Quotes): Expr[RequestPath] = {
+private implicit val toExprEndpoint: ToExpr[Endpoint] = new ToExpr[Endpoint] {
+  def apply(path: Endpoint)(using Quotes): Expr[Endpoint] = {
     import quotes.reflect._
-    '{ RequestPath(${Expr(path.apiName)}, ${Expr(path.methodName)}) }
+    '{ Endpoint(${Expr(path.apiName)}, ${Expr(path.methodName)}) }
   }
 }
 
@@ -168,7 +168,7 @@ object TraitMacro {
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
       val body = (cls.declaredMethods.zip(methods)).map { case (method, origMethod) =>
         val methodPathPart = getPathName(origMethod)
-        val path = RequestPath(traitPathPart, methodPathPart)
+        val path = Endpoint(traitPathPart, methodPathPart)
         val pathExpr = Expr(path)
 
         DefDef(method, { argss =>
@@ -250,9 +250,9 @@ object RouterMacro {
     type FunctionOutput = Either[ServerFailure, Result[PickleType]]
 
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
-      def methodCases(requestPathTerm: Term) = methods.map { method =>
+      def methodCases(endpointTerm: Term) = methods.map { method =>
         val methodPathPart = getPathName(method)
-        val path = RequestPath(traitPathPart, methodPathPart)
+        val path = Endpoint(traitPathPart, methodPathPart)
 
         val returnType = getInnerTypeOutOfReturnType[Trait, Result](method)
 
@@ -306,7 +306,7 @@ object RouterMacro {
                 Select(implRef, routerImplType.declaredMethod("execute").head),
                 List(tupleTypeTree, returnTypeTree)
               ),
-              List(requestPathTerm, payloadArg.asExpr.asTerm)
+              List(endpointTerm, payloadArg.asExpr.asTerm)
             ),
             List(instanceLambda)
           )
@@ -317,11 +317,11 @@ object RouterMacro {
       }
 
       '{
-        ${prefix}.orElse { requestPath =>
-          if (requestPath.apiName == ${Expr(traitPathPart)}) {
+        ${prefix}.orElse { endpoint =>
+          if (endpoint.apiName == ${Expr(traitPathPart)}) {
             ${Match(
-              '{requestPath.methodName}.asTerm,
-              methodCases('{requestPath}.asTerm) :+ CaseDef(Wildcard(), None, '{ None }.asTerm)
+              '{endpoint.methodName}.asTerm,
+              methodCases('{endpoint}.asTerm) :+ CaseDef(Wildcard(), None, '{ None }.asTerm)
             ).asExprOf[Option[FunctionInput => FunctionOutput]]}
           } else None
         }

@@ -6,7 +6,7 @@ import cats.effect.Concurrent
 import org.http4s._
 import org.http4s.dsl.Http4sDsl
 import fs2.Stream
-import sloth.{RequestPath, Router, ServerFailure}
+import sloth.{Endpoint, Router, ServerFailure}
 
 object HttpRpcRoutes {
 
@@ -25,8 +25,8 @@ object HttpRpcRoutes {
     HttpRoutes[F] { request =>
         request.pathInfo.segments match {
           case Vector(apiName, methodName) =>
-            val path = RequestPath(apiName.decoded(), methodName.decoded())
-            val result = router(request).getFunction(path).traverse { f =>
+            val endpoint = Endpoint(apiName.decoded(), methodName.decoded())
+            val result = router(request).get(endpoint).traverse { f =>
               request.as[PickleType].flatMap { payload =>
                 f(payload) match {
                   case Left(error)     => serverFailureToResponse[F](dsl, onError)(error)
@@ -56,8 +56,8 @@ object HttpRpcRoutes {
     HttpRoutes[F] { request =>
       request.pathInfo.segments match {
         case Vector(apiName, methodName) =>
-          val path = RequestPath(apiName.decoded(), methodName.decoded())
-          val result = router(request).getFunction(path).traverse { f =>
+          val endpoint = Endpoint(apiName.decoded(), methodName.decoded())
+          val result = router(request).get(endpoint).traverse { f =>
             request.as[String].flatMap { payload =>
               f(payload) match {
                 case Left(error) => serverFailureToResponse[F](dsl, onError)(error)
@@ -75,7 +75,7 @@ object HttpRpcRoutes {
   private def serverFailureToResponse[F[_]: Concurrent](dsl: Http4sDsl[F], onError: PartialFunction[Throwable, F[Response[F]]])(failure: ServerFailure): F[Response[F]] = {
     import dsl._
     failure match {
-      case ServerFailure.PathNotFound(_)        => NotFound()
+      case ServerFailure.EndpointNotFound(_)    => NotFound()
       case ServerFailure.HandlerError(err)      => onError.lift(err).getOrElse(InternalServerError(err.getMessage))
       case ServerFailure.DeserializerError(err) => onError.lift(err).getOrElse(BadRequest(err.getMessage))
     }

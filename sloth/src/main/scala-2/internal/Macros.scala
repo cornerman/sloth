@@ -1,6 +1,6 @@
 package sloth.internal
 
-import sloth.RequestPath
+import sloth.Endpoint
 
 import scala.reflect.macros.blackbox.Context
 
@@ -19,8 +19,8 @@ class Translator[C <: Context](val c: C) {
   import Validator._
 
   object implicits {
-    implicit val liftRequestPath: Liftable[RequestPath] =
-      Liftable[RequestPath]{ r => q"new _root_.sloth.RequestPath(${r.apiName}, ${r.methodName})" }
+    implicit val liftEndpoint: Liftable[Endpoint] =
+      Liftable[Endpoint]{ r => q"new _root_.sloth.Endpoint(${r.apiName}, ${r.methodName})" }
   }
 
   def abort(msg: String) = c.abort(c.enclosingPosition, msg)
@@ -138,7 +138,7 @@ object TraitMacro {
     val traitPathPart = t.traitPathPart(traitTag.tpe)
     val methodImplList = validMethods.collect { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
-      val path = RequestPath(traitPathPart, methodPathPart)
+      val path = Endpoint(traitPathPart, methodPathPart)
       val parameters =  t.paramsAsValDefs(method)
       val paramsType = t.paramsType(method)
       val paramListValue = t.wrapAsParamsType(method)
@@ -196,7 +196,7 @@ object RouterMacro {
       val argParams = t.objectToParams(method, TermName("args"))
       val innerReturnType = t.getInnerTypeOutOfReturnType(resultTag.tpe, method.finalResultType)
       val payloadFunction =
-        q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsType}, $innerReturnType](requestPath, payload) { args =>
+        q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsType}, $innerReturnType](endpoint, payload) { args =>
           value.${symbol.name.toTermName}(...$argParams)
         }"""
 
@@ -208,9 +208,9 @@ object RouterMacro {
       val implRouter = ${c.prefix}
       val impl = $impl
 
-      implRouter.orElse { requestPath =>
-        if (requestPath.apiName == $traitPathPart) {
-          requestPath.methodName match {
+      implRouter.orElse { endpoint =>
+        if (endpoint.apiName == $traitPathPart) {
+          endpoint.methodName match {
             case ..$methodCases
             case _ => None
           }
