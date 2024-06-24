@@ -14,11 +14,11 @@ private implicit val toExprEndpoint: ToExpr[Endpoint] = new ToExpr[Endpoint] {
   }
 }
 
-private def getPathName(using Quotes)(symbol: quotes.reflect.Symbol): String = {
+private def getEndpointName(using Quotes)(symbol: quotes.reflect.Symbol): String = {
   import quotes.reflect.*
 
   symbol.annotations.collectFirst {
-    case Apply(Select(New(annotation), _), Literal(constant) :: Nil) if annotation.tpe =:= TypeRepr.of[PathName] =>
+    case Apply(Select(New(annotation), _), Literal(constant) :: Nil) if annotation.tpe =:= TypeRepr.of[EndpointName] =>
       constant.value.asInstanceOf[String]
   }.getOrElse(symbol.name)
 }
@@ -87,8 +87,8 @@ def createTypeTreeTuple(using Quotes)(tupleTypesList: List[quotes.reflect.TypeRe
 private def checkMethodErrors[Trait: Type, Result[_]: Type](using q: Quotes)(methods: Seq[quotes.reflect.Symbol]): Unit = {
   import quotes.reflect.*
 
-  val duplicateErrors = methods.groupBy(getPathName).collect { case (name, symbols) if symbols.size > 1 =>
-    val message = s"Method $name is overloaded, please rename one of the methods or use the PathName annotation to disambiguate"
+  val duplicateErrors = methods.groupBy(getEndpointName).collect { case (name, symbols) if symbols.size > 1 =>
+    val message = s"Method $name is overloaded, please rename one of the methods or use the EndpointName annotation to disambiguate"
     (message, symbols.flatMap(_.pos).lastOption)
   }
 
@@ -155,7 +155,7 @@ object TraitMacro {
     val methods = definedMethodsInType[Trait]
     checkMethodErrors[Trait, Result](methods)
 
-    val traitPathPart = getPathName(TypeRepr.of[Trait].typeSymbol)
+    val traitPathPart = getEndpointName(TypeRepr.of[Trait].typeSymbol)
 
     def decls(cls: Symbol): List[Symbol] = methods.map { method =>
       val methodType = TypeRepr.of[Trait].memberType(method)
@@ -167,7 +167,7 @@ object TraitMacro {
 
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
       val body = (cls.declaredMethods.zip(methods)).map { case (method, origMethod) =>
-        val methodPathPart = getPathName(origMethod)
+        val methodPathPart = getEndpointName(origMethod)
         val path = Endpoint(traitPathPart, methodPathPart)
         val pathExpr = Expr(path)
 
@@ -221,7 +221,7 @@ object TraitMacro {
       Block(List(clsDef), newCls)
     }
 
-//     println(result.show)
+    println(result.show)
     result.asExprOf[Trait]
   }
 }
@@ -244,14 +244,14 @@ object RouterMacro {
     val methods = definedMethodsInType[Trait]
     checkMethodErrors[Trait, Result](methods)
 
-    val traitPathPart = getPathName(TypeRepr.of[Trait].typeSymbol)
+    val traitPathPart = getEndpointName(TypeRepr.of[Trait].typeSymbol)
 
     type FunctionInput = PickleType
     type FunctionOutput = Either[ServerFailure, Result[PickleType]]
 
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
       def methodCases(endpointTerm: Term) = methods.map { method =>
-        val methodPathPart = getPathName(method)
+        val methodPathPart = getEndpointName(method)
         val path = Endpoint(traitPathPart, methodPathPart)
 
         val returnType = getInnerTypeOutOfReturnType[Trait, Result](method)
@@ -328,7 +328,7 @@ object RouterMacro {
       }.asTerm
     }
 
-//     println(result.show)
+    println(result.show)
     result.asExprOf[Router[PickleType, Result]]
   }
 }

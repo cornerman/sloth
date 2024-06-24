@@ -40,11 +40,11 @@ class Translator[C <: Context](val c: C) {
   private def validateAllMethods(methods: List[(MethodSymbol, Type)]): List[Either[String, (MethodSymbol, Type)]] =
     methods.groupBy(m => methodPathPart(m._1)).map {
       case (_, x :: Nil) => Right(x)
-      case (k, _) => Left(s"""method $k is overloaded (rename the method or add a @PathName("other-name"))""")
+      case (k, _) => Left(s"""method $k is overloaded (rename the method or add a @EndpointName("other-name"))""")
     }.toList
 
-  private def findPathName(annotations: Seq[Annotation]) = annotations.reverse.map(_.tree).collectFirst {
-    case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.PathName] => name.toString
+  private def findEndpointName(annotations: Seq[Annotation]) = annotations.reverse.map(_.tree).collectFirst {
+    case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.EndpointName] => name.toString
   }
 
   private def eitherSeq[A, B](list: List[Either[A, B]]): Either[List[A], List[B]] = list.partition(_.isLeft) match {
@@ -76,10 +76,10 @@ class Translator[C <: Context](val c: C) {
 
   //TODO what about fqn for trait to not have overlaps?
   def traitPathPart(tpe: Type): String =
-    findPathName(tpe.typeSymbol.annotations).getOrElse(tpe.typeSymbol.name.toString)
+    findEndpointName(tpe.typeSymbol.annotations).getOrElse(tpe.typeSymbol.name.toString)
 
   def methodPathPart(m: MethodSymbol): String =
-    findPathName(m.annotations).getOrElse(m.name.toString)
+    findEndpointName(m.annotations).getOrElse(m.name.toString)
 
   def paramAsValDef(p: Symbol): ValDef = q"val ${p.name.toTermName}: ${p.typeSignature}"
   def paramsAsValDefs(m: Type): List[List[ValDef]] = m.paramLists.map(_.map(paramAsValDef))
@@ -120,7 +120,7 @@ class Translator[C <: Context](val c: C) {
 object Translator {
   def apply[T](c: Context)(f: Translator[c.type] => c.Tree): c.Expr[T] = {
     val tree = f(new Translator(c))
-//    println(tree)
+   println(tree)
     c.Expr(tree)
   }
 }
