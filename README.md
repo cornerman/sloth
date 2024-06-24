@@ -240,7 +240,7 @@ When calling `router.route[Api](impl)`, a macro generates a function that maps a
 
 ```scala
 { (endpoint: sloth.Endpoint) =>
-  if (endpoint.apiName = "Api") endpoint.methodName match {
+  if (endpoint.apiName == "Api") endpoint.methodName match {
     case "fun" => Some({ payload =>
         // deserialize payload
         // call Api implementation impl with arguments
