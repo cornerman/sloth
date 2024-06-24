@@ -221,7 +221,7 @@ object TraitMacro {
       Block(List(clsDef), newCls)
     }
 
-    println(result.show)
+    // println(result.show)
     result.asExprOf[Trait]
   }
 }
