@@ -328,7 +328,7 @@ object RouterMacro {
       }.asTerm
     }
 
-    println(result.show)
+    // println(result.show)
     result.asExprOf[Router[PickleType, Result]]
   }
 }
