@@ -1,7 +1,5 @@
 package sloth.internal
 
-import sloth.Method
-
 import scala.reflect.macros.blackbox.Context
 
 object Validator {
@@ -19,8 +17,8 @@ class Translator[C <: Context](val c: C) {
   import Validator._
 
   object implicits {
-    implicit val liftMethod: Liftable[Method] =
-      Liftable[Method]{ r => q"new _root_.sloth.Method(${r.traitName}, ${r.methodName})" }
+    implicit val liftMethod: Liftable[sloth.Method] =
+      Liftable[sloth.Method]{ r => q"new _root_.sloth.Method(${r.traitName}, ${r.methodName})" }
   }
 
   def abort(msg: String) = c.abort(c.enclosingPosition, msg)
@@ -138,7 +136,7 @@ object TraitMacro {
     val traitPathPart = t.traitPathPart(traitTag.tpe)
     val methodImplList = validMethods.collect { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
-      val path = Method(traitPathPart, methodPathPart)
+      val path = sloth.Method(traitPathPart, methodPathPart)
       val parameters =  t.paramsAsValDefs(method)
       val paramsType = t.paramsType(method)
       val paramListValue = t.wrapAsParamsType(method)
