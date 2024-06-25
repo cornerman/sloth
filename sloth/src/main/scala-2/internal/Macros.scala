@@ -20,7 +20,7 @@ class Translator[C <: Context](val c: C) {
 
   object implicits {
     implicit val liftMethod: Liftable[Method] =
-      Liftable[Method]{ r => q"new _root_.sloth.Method(${r.apiName}, ${r.methodName})" }
+      Liftable[Method]{ r => q"new _root_.sloth.Method(${r.traitName}, ${r.methodName})" }
   }
 
   def abort(msg: String) = c.abort(c.enclosingPosition, msg)
@@ -209,7 +209,7 @@ object RouterMacro {
       val impl = $impl
 
       implRouter.orElse { method =>
-        if (method.apiName == $traitPathPart) {
+        if (method.traitName == $traitPathPart) {
           method.methodName match {
             case ..$methodCases
             case _ => None

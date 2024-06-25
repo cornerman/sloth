@@ -52,7 +52,7 @@ val router = Router[ByteBuffer, Future].route[Api](ApiImpl)
 
 Use it to route requests to your Api implementation:
 ```scala
-val result = router(Request[ByteBuffer](Method(apiName = "Api", methodName = "fun"), bytes))
+val result = router(Request[ByteBuffer](Method(traitName = "Api", methodName = "fun"), bytes))
 // Now result contains the serialized Int result returned by the method ApiImpl.fun
 ```
 
@@ -223,7 +223,7 @@ In the above examples, we used the type `ByteBuffer` to select the serialization
 
 Sloth derives all information about an API from a scala trait. For example:
 ```scala
-// @Name("apiName")
+// @Name("traitName")
 trait Api {
     // @Name("funName")
     def fun(a: Int, b: String)(c: Double): F[Int]
@@ -240,7 +240,7 @@ When calling `router.route[Api](impl)`, a macro generates a function that maps a
 
 ```scala
 { (method: sloth.Method) =>
-  if (method.apiName = "Api") method.methodName match {
+  if (method.traitName = "Api") method.methodName match {
     case "fun" => Some({ payload =>
         // deserialize payload
         // call Api implementation impl with arguments

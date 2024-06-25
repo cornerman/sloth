@@ -10,7 +10,7 @@ import scala.quoted.runtime.StopMacroExpansion
 private implicit val toExprMethod: ToExpr[Method] = new ToExpr[Method] {
   def apply(path: Method)(using Quotes): Expr[Method] = {
     import quotes.reflect._
-    '{ Method(${Expr(path.apiName)}, ${Expr(path.methodName)}) }
+    '{ Method(${Expr(path.traitName)}, ${Expr(path.methodName)}) }
   }
 }
 
@@ -318,7 +318,7 @@ object RouterMacro {
 
       '{
         ${prefix}.orElse { method =>
-          if (method.apiName == ${Expr(traitPathPart)}) {
+          if (method.traitName == ${Expr(traitPathPart)}) {
             ${Match(
               '{method.methodName}.asTerm,
               methodCases('{method}.asTerm) :+ CaseDef(Wildcard(), None, '{ None }.asTerm)

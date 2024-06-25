@@ -13,7 +13,7 @@ case class HttpRequestConfig(
 ) {
   def toRequest[F[_]](method: sloth.Method, entityBody: EntityBody[F]): Request[F] = Request[F](
     method = Method.POST,
-    uri = baseUri / method.apiName / method.methodName,
+    uri = baseUri / method.traitName / method.methodName,
     httpVersion = httpVersion,
     headers = headers,
     body = entityBody,
