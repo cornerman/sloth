@@ -6,7 +6,7 @@ import chameleon.{Serializer, Deserializer}
 import scala.util.{Success, Failure, Try}
 
 class RouterImpl[PickleType, Result[_]](router: RouterCo[PickleType, Result]) {
-  def execute[T, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): Either[ServerFailure, Result[PickleType]] = {
+  def execute[T, R](path: Method, arguments: PickleType)(call: T => Result[R])(implicit deserializer: Deserializer[T, PickleType], serializer: Serializer[R, PickleType]): Either[ServerFailure, Result[PickleType]] = {
     deserializer.deserialize(arguments) match {
       case Right(arguments) =>
         Try(call(arguments)) match {
@@ -21,7 +21,7 @@ class RouterImpl[PickleType, Result[_]](router: RouterCo[PickleType, Result]) {
 }
 
 class RouterContraImpl[PickleType, Result[_]](router: RouterContra[PickleType, Result]) {
-  def execute[T, R](path: List[String], arguments: PickleType)(call: T => Result[R])(implicit deserializerT: Deserializer[T, PickleType], deserializerR: Deserializer[R, PickleType]): Either[ServerFailure, Result[PickleType]] = {
+  def execute[T, R](path: Method, arguments: PickleType)(call: T => Result[R])(implicit deserializerT: Deserializer[T, PickleType], deserializerR: Deserializer[R, PickleType]): Either[ServerFailure, Result[PickleType]] = {
     deserializerT.deserialize(arguments) match {
       case Right(arguments) =>
         Try(call(arguments)) match {
@@ -39,7 +39,7 @@ class RouterContraImpl[PickleType, Result[_]](router: RouterContra[PickleType, R
 
 class ClientImpl[PickleType, Result[_]](client: ClientCo[PickleType, Result]) {
 
-  def execute[T, R](path: List[String], arguments: T)(implicit deserializer: Deserializer[R, PickleType], serializer: Serializer[T, PickleType]): Result[R] = {
+  def execute[T, R](path: Method, arguments: T)(implicit deserializer: Deserializer[R, PickleType], serializer: Serializer[T, PickleType]): Result[R] = {
     val serializedArguments = serializer.serialize(arguments)
     val request: Request[PickleType] = Request(path, serializedArguments)
     val result: Result[R] = Try(client.transport(request)) match {
@@ -58,7 +58,7 @@ class ClientImpl[PickleType, Result[_]](client: ClientCo[PickleType, Result]) {
 
 class ClientContraImpl[PickleType, Result[_]](client: ClientContra[PickleType, Result]) {
 
-  def execute[T, R](path: List[String], arguments: T)(implicit serializerR: Serializer[R, PickleType], serializerT: Serializer[T, PickleType]): Result[R] = {
+  def execute[T, R](path: Method, arguments: T)(implicit serializerR: Serializer[R, PickleType], serializerT: Serializer[T, PickleType]): Result[R] = {
     val serializedArguments = serializerT.serialize(arguments)
     val request: Request[PickleType] = Request(path, serializedArguments)
     val result: Result[R] = Try(client.transport(request)) match {

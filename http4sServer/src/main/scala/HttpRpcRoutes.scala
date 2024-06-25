@@ -6,17 +6,16 @@ import cats.effect.Concurrent
 import org.http4s._
 import org.http4s.dsl.Http4sDsl
 import fs2.Stream
-import sloth.{Router, ServerFailure}
 
 object HttpRpcRoutes {
 
   def apply[PickleType: EntityDecoder[F, *]: EntityEncoder[F, *], F[_]: Concurrent](
-    router: Router[PickleType, F],
+    router: sloth.Router[PickleType, F],
     onError: PartialFunction[Throwable, F[Response[F]]] = PartialFunction.empty
   ): HttpRoutes[F] = withRequest[PickleType, F](_ => router, onError)
 
   def withRequest[PickleType: EntityDecoder[F, *]: EntityEncoder[F, *], F[_]: Concurrent](
-    router: Request[F] => Router[PickleType, F],
+    router: Request[F] => sloth.Router[PickleType, F],
     onError: PartialFunction[Throwable, F[Response[F]]] = PartialFunction.empty
   ): HttpRoutes[F] = {
     val dsl = Http4sDsl[F]
@@ -24,9 +23,9 @@ object HttpRpcRoutes {
 
     HttpRoutes[F] { request =>
         request.pathInfo.segments match {
-          case Vector(apiName, methodName) =>
-            val path = List(apiName.decoded(), methodName.decoded())
-            val result = router(request).getFunction(path).traverse { f =>
+          case Vector(traitName, methodName) =>
+            val method = sloth.Method(traitName.decoded(), methodName.decoded())
+            val result = router(request).getMethod(method).traverse { f =>
               request.as[PickleType].flatMap { payload =>
                 f(payload) match {
                   case Left(error)     => serverFailureToResponse[F](dsl, onError)(error)
@@ -42,12 +41,12 @@ object HttpRpcRoutes {
   }
 
   def eventStream[F[_]: Concurrent](
-    router: Router[String, Stream[F, *]],
+    router: sloth.Router[String, Stream[F, *]],
     onError: PartialFunction[Throwable, F[Response[F]]] = PartialFunction.empty
   ): HttpRoutes[F] = eventStreamWithRequest[F](_ => router, onError)
 
   def eventStreamWithRequest[F[_]: Concurrent](
-    router: Request[F] => Router[String, Stream[F, *]],
+    router: Request[F] => sloth.Router[String, Stream[F, *]],
     onError: PartialFunction[Throwable, F[Response[F]]] = PartialFunction.empty
   ): HttpRoutes[F] = {
     val dsl = Http4sDsl[F]
@@ -55,9 +54,9 @@ object HttpRpcRoutes {
 
     HttpRoutes[F] { request =>
       request.pathInfo.segments match {
-        case Vector(apiName, methodName) =>
-          val path = List(apiName.decoded(), methodName.decoded())
-          val result = router(request).getFunction(path).traverse { f =>
+        case Vector(traitName, methodName) =>
+          val method = sloth.Method(traitName.decoded(), methodName.decoded())
+          val result = router(request).getMethod(method).traverse { f =>
             request.as[String].flatMap { payload =>
               f(payload) match {
                 case Left(error) => serverFailureToResponse[F](dsl, onError)(error)
@@ -72,12 +71,12 @@ object HttpRpcRoutes {
     }
   }
 
-  private def serverFailureToResponse[F[_]: Concurrent](dsl: Http4sDsl[F], onError: PartialFunction[Throwable, F[Response[F]]])(failure: ServerFailure): F[Response[F]] = {
+  private def serverFailureToResponse[F[_]: Concurrent](dsl: Http4sDsl[F], onError: PartialFunction[Throwable, F[Response[F]]])(failure: sloth.ServerFailure): F[Response[F]] = {
     import dsl._
     failure match {
-      case ServerFailure.PathNotFound(_)        => NotFound()
-      case ServerFailure.HandlerError(err)      => onError.lift(err).getOrElse(InternalServerError(err.getMessage))
-      case ServerFailure.DeserializerError(err) => onError.lift(err).getOrElse(BadRequest(err.getMessage))
+      case sloth.ServerFailure.MethodNotFound(_)    => NotFound()
+      case sloth.ServerFailure.HandlerError(err)      => onError.lift(err).getOrElse(InternalServerError(err.getMessage))
+      case sloth.ServerFailure.DeserializerError(err) => onError.lift(err).getOrElse(BadRequest(err.getMessage))
     }
   }
 }

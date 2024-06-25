@@ -7,11 +7,18 @@ import scala.annotation.meta.param
 import scala.NonEmptyTuple
 import scala.quoted.runtime.StopMacroExpansion
 
-private def getPathName(using Quotes)(symbol: quotes.reflect.Symbol): String = {
+private implicit val toExprMethod: ToExpr[Method] = new ToExpr[Method] {
+  def apply(path: Method)(using Quotes): Expr[Method] = {
+    import quotes.reflect._
+    '{ Method(${Expr(path.traitName)}, ${Expr(path.methodName)}) }
+  }
+}
+
+private def getCustomName(using Quotes)(symbol: quotes.reflect.Symbol): String = {
   import quotes.reflect.*
 
   symbol.annotations.collectFirst {
-    case Apply(Select(New(annotation), _), Literal(constant) :: Nil) if annotation.tpe =:= TypeRepr.of[PathName] =>
+    case Apply(Select(New(annotation), _), Literal(constant) :: Nil) if annotation.tpe =:= TypeRepr.of[sloth.Name] =>
       constant.value.asInstanceOf[String]
   }.getOrElse(symbol.name)
 }
@@ -80,8 +87,8 @@ def createTypeTreeTuple(using Quotes)(tupleTypesList: List[quotes.reflect.TypeRe
 private def checkMethodErrors[Trait: Type, Result[_]: Type](using q: Quotes)(methods: Seq[quotes.reflect.Symbol]): Unit = {
   import quotes.reflect.*
 
-  val duplicateErrors = methods.groupBy(getPathName).collect { case (name, symbols) if symbols.size > 1 =>
-    val message = s"Method $name is overloaded, please rename one of the methods or use the PathName annotation to disambiguate"
+  val duplicateErrors = methods.groupBy(getCustomName).collect { case (name, symbols) if symbols.size > 1 =>
+    val message = s"""Method $name is overloaded, please rename one of the methods or use the @Name("other-name") annotation to disambiguate"""
     (message, symbols.flatMap(_.pos).lastOption)
   }
 
@@ -148,7 +155,7 @@ object TraitMacro {
     val methods = definedMethodsInType[Trait]
     checkMethodErrors[Trait, Result](methods)
 
-    val traitPathPart = getPathName(TypeRepr.of[Trait].typeSymbol)
+    val traitPathPart = getCustomName(TypeRepr.of[Trait].typeSymbol)
 
     def decls(cls: Symbol): List[Symbol] = methods.map { method =>
       val methodType = TypeRepr.of[Trait].memberType(method)
@@ -160,8 +167,9 @@ object TraitMacro {
 
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
       val body = (cls.declaredMethods.zip(methods)).map { case (method, origMethod) =>
-        val methodPathPart = getPathName(origMethod)
-        val path = traitPathPart :: methodPathPart :: Nil
+        val methodPathPart = getCustomName(origMethod)
+        val path = Method(traitPathPart, methodPathPart)
+        val pathExpr = Expr(path)
 
         DefDef(method, { argss =>
           // check argss and method.paramSyms have same length outside and inside
@@ -170,7 +178,6 @@ object TraitMacro {
             argss.zip(method.paramSymss).forall { case (a,b) => a.length == b.length }
 
           Option.when(sameLength) {
-            val pathExpr = Expr(path)
             val tupleExpr = argss.flatten match {
               case Nil => '{()}
               case arg :: Nil => arg.asExpr
@@ -237,17 +244,15 @@ object RouterMacro {
     val methods = definedMethodsInType[Trait]
     checkMethodErrors[Trait, Result](methods)
 
-    val traitPathPart = getPathName(TypeRepr.of[Trait].typeSymbol)
+    val traitPathPart = getCustomName(TypeRepr.of[Trait].typeSymbol)
 
     type FunctionInput = PickleType
     type FunctionOutput = Either[ServerFailure, Result[PickleType]]
 
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
-      val methodDefinitions = methods.map { method =>
-        val methodPathPart = getPathName(method)
-        val path = traitPathPart :: methodPathPart :: Nil
-
-        val pathExpr = Expr(path)
+      def methodCases(methodTerm: Term) = methods.map { method =>
+        val methodPathPart = getCustomName(method)
+        val path = Method(traitPathPart, methodPathPart)
 
         val returnType = getInnerTypeOutOfReturnType[Trait, Result](method)
 
@@ -301,19 +306,25 @@ object RouterMacro {
                 Select(implRef, routerImplType.declaredMethod("execute").head),
                 List(tupleTypeTree, returnTypeTree)
               ),
-              List(pathExpr.asTerm, payloadArg.asExpr.asTerm)
+              List(methodTerm, payloadArg.asExpr.asTerm)
             ),
             List(instanceLambda)
           )
         })
 
-        '{
-          (${Expr(methodPathPart)}, ${lambda.asExprOf[FunctionInput => FunctionOutput]})
-        }
+        val caseBody = '{ Some(${lambda.asExprOf[FunctionInput => FunctionOutput]}) }
+        CaseDef(Literal(StringConstant(methodPathPart)), None, caseBody.asTerm)
       }
 
       '{
-        ${prefix}.orElse(${Expr(traitPathPart)}, Map.from(${Expr.ofList(methodDefinitions)}))
+        ${prefix}.orElse { method =>
+          if (method.traitName == ${Expr(traitPathPart)}) {
+            ${Match(
+              '{method.methodName}.asTerm,
+              methodCases('{method}.asTerm) :+ CaseDef(Wildcard(), None, '{ None }.asTerm)
+            ).asExprOf[Option[FunctionInput => FunctionOutput]]}
+          } else None
+        }
       }.asTerm
     }
 

@@ -52,7 +52,7 @@ val router = Router[ByteBuffer, Future].route[Api](ApiImpl)
 
 Use it to route requests to your Api implementation:
 ```scala
-val result = router(Request[ByteBuffer]("Api" :: "fun" :: Nil, bytes))
+val result = router(Request[ByteBuffer](Method(traitName = "Api", methodName = "fun"), bytes))
 // Now result contains the serialized Int result returned by the method ApiImpl.fun
 ```
 
@@ -187,7 +187,7 @@ For logging, you can define a `LogHandler`, which can log each request including
 Define it when creating the `Client`:
 ```scala
 object MyLogHandler extends LogHandler[ClientResult[_]] {
-  def logRequest[T](path: List[String], argumentObject: Any, result: ClientResult[T]): ClientResult[T] = ???
+  def logRequest[T](method: Method, argumentObject: Any, result: ClientResult[T]): ClientResult[T] = ???
 }
 
 val client = Client[PickleType, ClientResult](Transport, MyLogHandler)
@@ -196,7 +196,7 @@ val client = Client[PickleType, ClientResult](Transport, MyLogHandler)
 Define it when creating the `Router`:
 ```scala
 object MyLogHandler extends LogHandler[ServerResult[_]] {
-  def logRequest[T](path: List[String], argumentObject: Any, result: ServerResult[T]): ServerResult[T] = ???
+  def logRequest[T](method: Method, argumentObject: Any, result: ServerResult[T]): ServerResult[T] = ???
 }
 
 val router = Router[PickleType, ServerResult](MyLogHandler)
@@ -204,11 +204,11 @@ val router = Router[PickleType, ServerResult](MyLogHandler)
 
 ### Method overloading
 
-When overloading methods with different parameter lists, sloth does not have a unique path (because it is derived from the trait name and the method name). Here you will need to provide your own path name:
+When overloading methods with different parameter lists, sloth cannot uniquely identify the method (because it is referenced with the trait name and the method name). Here you will need to provide a custom name:
 ```scala
 trait Api {
     def fun(i: Int): F[Int]
-    @PathName("funWithString")
+    @Name("funWithString")
     def fun(i: Int, s: String): F[Int]
 }
 ```
@@ -223,27 +223,32 @@ In the above examples, we used the type `ByteBuffer` to select the serialization
 
 Sloth derives all information about an API from a scala trait. For example:
 ```scala
-// @PathName("apiName")
+// @Name("traitName")
 trait Api {
-    // @PathName("funName")
+    // @Name("funName")
     def fun(a: Int, b: String)(c: Double): F[Int]
 }
 ```
 
 For each declared method in this trait (in this case `fun`):
-* Calculate method path: `List("Api", "fun")` (`PathName` annotations on the trait or method are taken into account).
+* Calculate method name: `Method("Api", "fun")` (`Name` annotations on the trait or method are taken into account).
 * Serialize the method parameters as a tuple: `(a, b, c)`.
 
 ### Server
 
-When calling `router.route[Api](impl)`, a macro generates a function that maps a method path and the pickled arguments to a pickled result. This basically boils down to:
+When calling `router.route[Api](impl)`, a macro generates a function that maps a method (trait-name + method-name) and the pickled arguments to a pickled result. This basically boils down to:
 
 ```scala
-HashMap("Api" -> HashMap("fun" -> { payload =>
-    // deserialize payload
-    // call Api implementation impl with arguments
-    // return serialized response
-}))
+{ (method: sloth.Method) =>
+  if (method.traitName = "Api") method.methodName match {
+    case "fun" => Some({ payload =>
+        // deserialize payload
+        // call Api implementation impl with arguments
+        // return serialized response
+    })
+    case _ => None
+  } else None
+}
 ```
 
 ### Client
@@ -254,7 +259,7 @@ When calling `client.wire[Api]`, a macro generates an instance of `Api` by imple
 new Api {
     def fun(a: Int, b: String)(c: Double): F[Int] = {
         // serialize arguments
-        // call RequestTransport transport with method path and arguments
+        // call RequestTransport transport with method and arguments
         // return deserialized response
     }
 }

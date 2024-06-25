@@ -4,9 +4,14 @@ sealed trait ServerFailure {
   def toException = ServerException(this)
 }
 object ServerFailure {
-  case class PathNotFound(path: List[String]) extends ServerFailure
+  case class MethodNotFound(path: Method) extends ServerFailure
   case class HandlerError(ex: Throwable) extends ServerFailure
   case class DeserializerError(ex: Throwable) extends ServerFailure
+
+  @deprecated("Use MethodNotFound instead", "0.8.0")
+  val PathNotFound = MethodNotFound
+  @deprecated("Use MethodNotFound instead", "0.8.0")
+  type PathNotFound = MethodNotFound
 }
 
 case class ServerException(failure: ServerFailure) extends Exception(failure.toString)
@@ -17,7 +22,6 @@ sealed trait ClientFailure {
 object ClientFailure {
   case class TransportError(ex: Throwable) extends ClientFailure
   case class DeserializerError(ex: Throwable) extends ClientFailure
-
 }
 case class ClientException(failure: ClientFailure) extends Exception(failure.toString)
 

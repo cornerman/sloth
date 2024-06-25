@@ -16,8 +16,10 @@ class Translator[C <: Context](val c: C) {
   import c.universe._
   import Validator._
 
-  val slothPkg = q"_root_.sloth"
-  val internalPkg = q"_root_.sloth.internal"
+  object implicits {
+    implicit val liftMethod: Liftable[sloth.Method] =
+      Liftable[sloth.Method]{ r => q"new _root_.sloth.Method(${r.traitName}, ${r.methodName})" }
+  }
 
   def abort(msg: String) = c.abort(c.enclosingPosition, msg)
 
@@ -36,11 +38,11 @@ class Translator[C <: Context](val c: C) {
   private def validateAllMethods(methods: List[(MethodSymbol, Type)]): List[Either[String, (MethodSymbol, Type)]] =
     methods.groupBy(m => methodPathPart(m._1)).map {
       case (_, x :: Nil) => Right(x)
-      case (k, _) => Left(s"""method $k is overloaded (rename the method or add a @PathName("other-name"))""")
+      case (k, _) => Left(s"""Method $k is overloaded, please rename one of the methods or use the @Name("other-name") annotation to disambiguate""")
     }.toList
 
-  private def findPathName(annotations: Seq[Annotation]) = annotations.reverse.map(_.tree).collectFirst {
-    case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.PathName] => name.toString
+  private def findCustomName(annotations: Seq[Annotation]) = annotations.reverse.map(_.tree).collectFirst {
+    case Apply(Select(New(annotation), _), Literal(Constant(name)) :: Nil) if annotation.tpe =:= typeOf[sloth.Name] => name.toString
   }
 
   private def eitherSeq[A, B](list: List[Either[A, B]]): Either[List[A], List[B]] = list.partition(_.isLeft) match {
@@ -72,10 +74,10 @@ class Translator[C <: Context](val c: C) {
 
   //TODO what about fqn for trait to not have overlaps?
   def traitPathPart(tpe: Type): String =
-    findPathName(tpe.typeSymbol.annotations).getOrElse(tpe.typeSymbol.name.toString)
+    findCustomName(tpe.typeSymbol.annotations).getOrElse(tpe.typeSymbol.name.toString)
 
   def methodPathPart(m: MethodSymbol): String =
-    findPathName(m.annotations).getOrElse(m.name.toString)
+    findCustomName(m.annotations).getOrElse(m.name.toString)
 
   def paramAsValDef(p: Symbol): ValDef = q"val ${p.name.toTermName}: ${p.typeSignature}"
   def paramsAsValDefs(m: Type): List[List[ValDef]] = m.paramLists.map(_.map(paramAsValDef))
@@ -116,6 +118,7 @@ class Translator[C <: Context](val c: C) {
 object Translator {
   def apply[T](c: Context)(f: Translator[c.type] => c.Tree): c.Expr[T] = {
     val tree = f(new Translator(c))
+   // println(tree)
     c.Expr(tree)
   }
 }
@@ -125,6 +128,7 @@ object TraitMacro {
     (c: Context)
     (impl: c.Tree)
     (implicit traitTag: c.WeakTypeTag[Trait], resultTag: c.WeakTypeTag[Result[_]]): c.Expr[Trait] = Translator(c) { t =>
+    import t.implicits._
     import c.universe._
 
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
@@ -132,7 +136,7 @@ object TraitMacro {
     val traitPathPart = t.traitPathPart(traitTag.tpe)
     val methodImplList = validMethods.collect { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
-      val path = traitPathPart :: methodPathPart :: Nil
+      val path = sloth.Method(traitPathPart, methodPathPart)
       val parameters =  t.paramsAsValDefs(method)
       val paramsType = t.paramsType(method)
       val paramListValue = t.wrapAsParamsType(method)
@@ -184,18 +188,17 @@ object RouterMacro {
     val validMethods = t.supportedMethodsInType(traitTag.tpe, resultTag.tpe)
 
     val traitPathPart = t.traitPathPart(traitTag.tpe)
-    val methodTuples = validMethods.map { case (symbol, method) =>
+    val methodCases = validMethods.map { case (symbol, method) =>
       val methodPathPart = t.methodPathPart(symbol)
-      val path = traitPathPart :: methodPathPart :: Nil
       val paramsType = t.paramsType(method)
       val argParams = t.objectToParams(method, TermName("args"))
       val innerReturnType = t.getInnerTypeOutOfReturnType(resultTag.tpe, method.finalResultType)
       val payloadFunction =
-        q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsType}, $innerReturnType]($path, payload) { args =>
+        q"""(payload: ${pickleTypeTag.tpe}) => impl.execute[${paramsType}, $innerReturnType](method, payload) { args =>
           value.${symbol.name.toTermName}(...$argParams)
         }"""
 
-      q"($methodPathPart, $payloadFunction)"
+      cq"$methodPathPart => Some($payloadFunction)"
     }
 
     q"""
@@ -203,7 +206,14 @@ object RouterMacro {
       val implRouter = ${c.prefix}
       val impl = $impl
 
-      implRouter.orElse($traitPathPart, scala.collection.immutable.Map(..$methodTuples))
+      implRouter.orElse { method =>
+        if (method.traitName == $traitPathPart) {
+          method.methodName match {
+            case ..$methodCases
+            case _ => None
+          }
+        } else None
+      }
     """
   }
 
