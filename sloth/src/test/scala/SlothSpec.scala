@@ -23,7 +23,7 @@ trait SingleApi {
   // def bum(a: Int): Option[Int]
   // should not compile because of generic parameter
   // def bom[T](a: T): Future[Int]
-  @Name("kanone") // does not compile without MethodName, because overloaded
+  @Name("kanone") // does not compile without Name annotation, because overloaded
   def foo: Future[Int]
 }
 object SingleApiImpl extends SingleApi {
