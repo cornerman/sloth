@@ -16,7 +16,7 @@ This library is inspired by [autowire](https://github.com/lihaoyi/autowire). Som
 
 Get latest release:
 ```scala
-libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.7.3"
+libraryDependencies += "com.github.cornerman" %%% "sloth" % "0.8.0"
 ```
 
 We additonally publish snapshot releases for every commit.
@@ -271,8 +271,8 @@ new Api {
 
 Use with:
 ```
-libraryDependencies += "com.github.cornerman" %%% "sloth-http4s-server" % "0.7.3"
-libraryDependencies += "com.github.cornerman" %%% "sloth-http4s-client" % "0.7.3"
+libraryDependencies += "com.github.cornerman" %%% "sloth-http4s-server" % "0.8.0"
+libraryDependencies += "com.github.cornerman" %%% "sloth-http4s-client" % "0.8.0"
 ```
 
 On the server:
@@ -310,7 +310,7 @@ This is useful when running in the browser, because it will have a smaller bundl
 
 Use with:
 ```
-libraryDependencies += "com.github.cornerman" %%% "sloth-jsdom-client" % "0.7.3"
+libraryDependencies += "com.github.cornerman" %%% "sloth-jsdom-client" % "0.8.0"
 ```
 
 In the client:
