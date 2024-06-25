@@ -52,7 +52,7 @@ val router = Router[ByteBuffer, Future].route[Api](ApiImpl)
 
 Use it to route requests to your Api implementation:
 ```scala
-val result = router(Request[ByteBuffer]("Api" :: "fun" :: Nil, bytes))
+val result = router(Request[ByteBuffer](RequestPath(apiName = "Api", methodName = "fun"), bytes))
 // Now result contains the serialized Int result returned by the method ApiImpl.fun
 ```
 
@@ -187,7 +187,7 @@ For logging, you can define a `LogHandler`, which can log each request including
 Define it when creating the `Client`:
 ```scala
 object MyLogHandler extends LogHandler[ClientResult[_]] {
-  def logRequest[T](path: List[String], argumentObject: Any, result: ClientResult[T]): ClientResult[T] = ???
+  def logRequest[T](path: RequestPath, argumentObject: Any, result: ClientResult[T]): ClientResult[T] = ???
 }
 
 val client = Client[PickleType, ClientResult](Transport, MyLogHandler)
@@ -196,7 +196,7 @@ val client = Client[PickleType, ClientResult](Transport, MyLogHandler)
 Define it when creating the `Router`:
 ```scala
 object MyLogHandler extends LogHandler[ServerResult[_]] {
-  def logRequest[T](path: List[String], argumentObject: Any, result: ServerResult[T]): ServerResult[T] = ???
+  def logRequest[T](path: RequestPath, argumentObject: Any, result: ServerResult[T]): ServerResult[T] = ???
 }
 
 val router = Router[PickleType, ServerResult](MyLogHandler)
@@ -231,7 +231,7 @@ trait Api {
 ```
 
 For each declared method in this trait (in this case `fun`):
-* Calculate method path: `List("Api", "fun")` (`PathName` annotations on the trait or method are taken into account).
+* Calculate method path: `RequestPath("Api", "fun")` (`PathName` annotations on the trait or method are taken into account).
 * Serialize the method parameters as a tuple: `(a, b, c)`.
 
 ### Server
