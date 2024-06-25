@@ -231,7 +231,7 @@ trait Api {
 ```
 
 For each declared method in this trait (in this case `fun`):
-* Calculate method method: `Method("Api", "fun")` (`Name` annotations on the trait or method are taken into account).
+* Calculate method name: `Method("Api", "fun")` (`Name` annotations on the trait or method are taken into account).
 * Serialize the method parameters as a tuple: `(a, b, c)`.
 
 ### Server
@@ -259,7 +259,7 @@ When calling `client.wire[Api]`, a macro generates an instance of `Api` by imple
 new Api {
     def fun(a: Int, b: String)(c: Double): F[Int] = {
         // serialize arguments
-        // call RequestTransport transport with method method and arguments
+        // call RequestTransport transport with method and arguments
         // return deserialized response
     }
 }
