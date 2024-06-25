@@ -25,7 +25,7 @@ object HttpRpcRoutes {
         request.pathInfo.segments match {
           case Vector(traitName, methodName) =>
             val method = sloth.Method(traitName.decoded(), methodName.decoded())
-            val result = router(request).get(method).traverse { f =>
+            val result = router(request).getMethod(method).traverse { f =>
               request.as[PickleType].flatMap { payload =>
                 f(payload) match {
                   case Left(error)     => serverFailureToResponse[F](dsl, onError)(error)
@@ -56,7 +56,7 @@ object HttpRpcRoutes {
       request.pathInfo.segments match {
         case Vector(traitName, methodName) =>
           val method = sloth.Method(traitName.decoded(), methodName.decoded())
-          val result = router(request).get(method).traverse { f =>
+          val result = router(request).getMethod(method).traverse { f =>
             request.as[String].flatMap { payload =>
               f(payload) match {
                 case Left(error) => serverFailureToResponse[F](dsl, onError)(error)
