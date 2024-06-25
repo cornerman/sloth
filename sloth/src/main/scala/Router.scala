@@ -10,13 +10,13 @@ trait Router[PickleType, Result[_]] {
   val get: Router.ApiMapping[PickleType, Result]
 
   def apply(request: Request[PickleType]): Either[ServerFailure, Result[PickleType]] =
-    get(request.endpoint) match {
+    get(request.method) match {
       case Some(function) => function(request.payload)
-      case None => Left(ServerFailure.EndpointNotFound(request.endpoint))
+      case None => Left(ServerFailure.MethodNotFound(request.method))
     }
 
-  @deprecated("Use get(endpoint) instead", "0.8.0")
-  def getFunction(path: List[String]): Option[PickleType => Either[ServerFailure, Result[PickleType]]] = get(Request.endpointFromList(path))
+  @deprecated("Use get(method) instead", "0.8.0")
+  def getFunction(path: List[String]): Option[PickleType => Either[ServerFailure, Result[PickleType]]] = get(Request.methodFromList(path))
 
   def orElse(collect: Router.ApiMapping[PickleType, Result]): Router[PickleType, Result]
 }
@@ -40,7 +40,7 @@ class RouterContra[PickleType, Result[_]](private[sloth] val logger: LogHandler[
 }
 
 object Router {
-  type ApiMapping[PickleType, Result[_]] = Endpoint => Option[PickleType => Either[ServerFailure, Result[PickleType]]]
+  type ApiMapping[PickleType, Result[_]] = Method => Option[PickleType => Either[ServerFailure, Result[PickleType]]]
   private val emptyApiMapping: Any => None.type = (_: Any) => None
 
   def apply[PickleType, Result[_]: Functor]: RouterCo[PickleType, Result] = apply(LogHandler.empty[Result])

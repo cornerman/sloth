@@ -21,7 +21,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       val argument = Argument(1)
       val pickledInput = Serializer[Argument, PickleType].serialize(argument)
       val resultValue = "\"Argument(1)\""
-      val result = impl.execute[Argument, String](Endpoint("eine", "methode"), pickledInput)(_.toString)
+      val result = impl.execute[Argument, String](Method("eine", "methode"), pickledInput)(_.toString)
 
       result mustEqual Right(resultValue)
     }
@@ -33,7 +33,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       val argument = Argument(1)
       val pickledInput = Serializer[Argument, PickleType].serialize(argument)
       val exception = new Exception("meh")
-      val result = impl.execute[Argument, String](Endpoint("eine", "methode"), pickledInput)(_ => throw exception)
+      val result = impl.execute[Argument, String](Method("eine", "methode"), pickledInput)(_ => throw exception)
 
       result mustEqual Left(ServerFailure.HandlerError(exception))
     }
@@ -51,7 +51,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
 
       val receivedParameters = collection.mutable.ArrayBuffer.empty[Argument]
       val receivedStrings = collection.mutable.ArrayBuffer.empty[String]
-      val result = impl.execute[Argument, String](Endpoint("eine", "methode"), pickledInput) { argument =>
+      val result = impl.execute[Argument, String](Method("eine", "methode"), pickledInput) { argument =>
         receivedParameters += argument
 
         { string =>
@@ -73,7 +73,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       val argument = Argument(1)
       val pickledInput = Serializer[Argument, PickleType].serialize(argument)
       val exception = new Exception("meh")
-      val result = impl.execute[Argument, String](Endpoint("eine", "methode"), pickledInput)(_ => throw exception)
+      val result = impl.execute[Argument, String](Method("eine", "methode"), pickledInput)(_ => throw exception)
 
       result mustEqual Left(ServerFailure.HandlerError(exception))
     }
@@ -90,7 +90,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       val impl = new ClientImpl(client)
 
       val argument = Argument(1)
-      val result = impl.execute[Argument, Argument](Endpoint("api", "f"), argument)
+      val result = impl.execute[Argument, Argument](Method("api", "f"), argument)
 
       result mustEqual Right(argument)
     }
@@ -102,7 +102,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       val impl = new ClientImpl(client)
 
       val argument = Argument(1)
-      val result = impl.execute[Argument, Double](Endpoint("api", "f"), argument)
+      val result = impl.execute[Argument, Double](Method("api", "f"), argument)
 
       result mustEqual Left(ClientFailure.TransportError(exception))
     }
@@ -125,7 +125,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       val impl = new ClientContraImpl(client)
 
       val argument = Argument(1)
-      val resultf = impl.execute[Argument, Argument](Endpoint("api", "f"), argument)
+      val resultf = impl.execute[Argument, Argument](Method("api", "f"), argument)
 
       resultf(Argument(2)) mustEqual Right(())
 
@@ -140,7 +140,7 @@ class ImplsSpec extends AnyFreeSpec with Matchers {
       val impl = new ClientContraImpl(client)
 
       val argument = Argument(1)
-      val resultf = impl.execute[Argument, Double](Endpoint("api", "f"), argument)
+      val resultf = impl.execute[Argument, Double](Method("api", "f"), argument)
 
       resultf(2.0) mustEqual Left(ClientFailure.TransportError(exception))
     }

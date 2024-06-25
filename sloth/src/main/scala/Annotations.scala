@@ -2,4 +2,4 @@ package sloth
 
 import scala.annotation.StaticAnnotation
 
-class EndpointName(val name: String) extends StaticAnnotation
+class Name(val name: String) extends StaticAnnotation

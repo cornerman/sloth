@@ -7,18 +7,18 @@ import scala.annotation.meta.param
 import scala.NonEmptyTuple
 import scala.quoted.runtime.StopMacroExpansion
 
-private implicit val toExprEndpoint: ToExpr[Endpoint] = new ToExpr[Endpoint] {
-  def apply(path: Endpoint)(using Quotes): Expr[Endpoint] = {
+private implicit val toExprMethod: ToExpr[Method] = new ToExpr[Method] {
+  def apply(path: Method)(using Quotes): Expr[Method] = {
     import quotes.reflect._
-    '{ Endpoint(${Expr(path.apiName)}, ${Expr(path.methodName)}) }
+    '{ Method(${Expr(path.apiName)}, ${Expr(path.methodName)}) }
   }
 }
 
-private def getEndpointName(using Quotes)(symbol: quotes.reflect.Symbol): String = {
+private def getCustomName(using Quotes)(symbol: quotes.reflect.Symbol): String = {
   import quotes.reflect.*
 
   symbol.annotations.collectFirst {
-    case Apply(Select(New(annotation), _), Literal(constant) :: Nil) if annotation.tpe =:= TypeRepr.of[EndpointName] =>
+    case Apply(Select(New(annotation), _), Literal(constant) :: Nil) if annotation.tpe =:= TypeRepr.of[sloth.Name] =>
       constant.value.asInstanceOf[String]
   }.getOrElse(symbol.name)
 }
@@ -87,8 +87,8 @@ def createTypeTreeTuple(using Quotes)(tupleTypesList: List[quotes.reflect.TypeRe
 private def checkMethodErrors[Trait: Type, Result[_]: Type](using q: Quotes)(methods: Seq[quotes.reflect.Symbol]): Unit = {
   import quotes.reflect.*
 
-  val duplicateErrors = methods.groupBy(getEndpointName).collect { case (name, symbols) if symbols.size > 1 =>
-    val message = s"Method $name is overloaded, please rename one of the methods or use the EndpointName annotation to disambiguate"
+  val duplicateErrors = methods.groupBy(getCustomName).collect { case (name, symbols) if symbols.size > 1 =>
+    val message = s"""Method $name is overloaded, please rename one of the methods or use the @Name("other-name") annotation to disambiguate"""
     (message, symbols.flatMap(_.pos).lastOption)
   }
 
@@ -155,7 +155,7 @@ object TraitMacro {
     val methods = definedMethodsInType[Trait]
     checkMethodErrors[Trait, Result](methods)
 
-    val traitPathPart = getEndpointName(TypeRepr.of[Trait].typeSymbol)
+    val traitPathPart = getCustomName(TypeRepr.of[Trait].typeSymbol)
 
     def decls(cls: Symbol): List[Symbol] = methods.map { method =>
       val methodType = TypeRepr.of[Trait].memberType(method)
@@ -167,8 +167,8 @@ object TraitMacro {
 
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
       val body = (cls.declaredMethods.zip(methods)).map { case (method, origMethod) =>
-        val methodPathPart = getEndpointName(origMethod)
-        val path = Endpoint(traitPathPart, methodPathPart)
+        val methodPathPart = getCustomName(origMethod)
+        val path = Method(traitPathPart, methodPathPart)
         val pathExpr = Expr(path)
 
         DefDef(method, { argss =>
@@ -244,15 +244,15 @@ object RouterMacro {
     val methods = definedMethodsInType[Trait]
     checkMethodErrors[Trait, Result](methods)
 
-    val traitPathPart = getEndpointName(TypeRepr.of[Trait].typeSymbol)
+    val traitPathPart = getCustomName(TypeRepr.of[Trait].typeSymbol)
 
     type FunctionInput = PickleType
     type FunctionOutput = Either[ServerFailure, Result[PickleType]]
 
     val result = ValDef.let(Symbol.spliceOwner, implInstance.asTerm) { implRef =>
-      def methodCases(endpointTerm: Term) = methods.map { method =>
-        val methodPathPart = getEndpointName(method)
-        val path = Endpoint(traitPathPart, methodPathPart)
+      def methodCases(methodTerm: Term) = methods.map { method =>
+        val methodPathPart = getCustomName(method)
+        val path = Method(traitPathPart, methodPathPart)
 
         val returnType = getInnerTypeOutOfReturnType[Trait, Result](method)
 
@@ -306,7 +306,7 @@ object RouterMacro {
                 Select(implRef, routerImplType.declaredMethod("execute").head),
                 List(tupleTypeTree, returnTypeTree)
               ),
-              List(endpointTerm, payloadArg.asExpr.asTerm)
+              List(methodTerm, payloadArg.asExpr.asTerm)
             ),
             List(instanceLambda)
           )
@@ -317,11 +317,11 @@ object RouterMacro {
       }
 
       '{
-        ${prefix}.orElse { endpoint =>
-          if (endpoint.apiName == ${Expr(traitPathPart)}) {
+        ${prefix}.orElse { method =>
+          if (method.apiName == ${Expr(traitPathPart)}) {
             ${Match(
-              '{endpoint.methodName}.asTerm,
-              methodCases('{endpoint}.asTerm) :+ CaseDef(Wildcard(), None, '{ None }.asTerm)
+              '{method.methodName}.asTerm,
+              methodCases('{method}.asTerm) :+ CaseDef(Wildcard(), None, '{ None }.asTerm)
             ).asExprOf[Option[FunctionInput => FunctionOutput]]}
           } else None
         }
