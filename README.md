@@ -204,7 +204,7 @@ val router = Router[PickleType, ServerResult](MyLogHandler)
 
 ### Method overloading
 
-When overloading methods with different parameter lists, sloth cannot have uniquely identify the method (because it is referenced with the trait name and the method name). Here you will need to provide a custom name:
+When overloading methods with different parameter lists, sloth cannot uniquely identify the method (because it is referenced with the trait name and the method name). Here you will need to provide a custom name:
 ```scala
 trait Api {
     def fun(i: Int): F[Int]
@@ -236,7 +236,7 @@ For each declared method in this trait (in this case `fun`):
 
 ### Server
 
-When calling `router.route[Api](impl)`, a macro generates a function that maps a method method and the pickled arguments to a pickled result. This basically boils down to:
+When calling `router.route[Api](impl)`, a macro generates a function that maps a method (trait-name + method-name) and the pickled arguments to a pickled result. This basically boils down to:
 
 ```scala
 { (method: sloth.Method) =>
