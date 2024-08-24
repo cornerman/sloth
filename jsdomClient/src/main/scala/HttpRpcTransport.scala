@@ -5,7 +5,6 @@ import cats.implicits._
 import sloth.{Request, RequestTransport}
 import org.scalajs.dom
 
-import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
 
 case class HttpRequestConfig(
