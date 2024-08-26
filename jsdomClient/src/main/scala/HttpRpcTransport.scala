@@ -21,7 +21,7 @@ object HttpRpcTransport {
       url         = s"${config.baseUri}/${request.method.traitName}/${request.method.methodName}"
       requestArgs = new dom.RequestInit { headers = config.headers.toJSDictionary; method = dom.HttpMethod.POST; body = request.payload }
       response   <- Async[F].fromPromise(Async[F].delay(dom.fetch(url, requestArgs)))
-      _          <- Async[F].raiseWhen(!response.ok)(new Exception(s"HTTP error ${response.status}"))
+      _          <- Async[F].raiseWhen(!response.ok)(new Exception(s"${request.method.traitName}.${request.method.methodName} returned HTTP ${response.status}"))
       result     <- Async[F].fromPromise(Async[F].delay(response.text()))
     } yield result
   }
