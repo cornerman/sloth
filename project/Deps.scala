@@ -12,7 +12,7 @@ object Deps {
   val catsEffect = dep("org.typelevel" %%% "cats-effect" % "3.5.7")
   val chameleon = dep("com.github.cornerman" %%% "chameleon" % "0.4.1")
 
-  val zioJson = dep("dev.zio" %%% "zio-json" % "0.7.25")
+  val zioJson = dep("dev.zio" %%% "zio-json" % "0.7.26")
 
   val circe = new {
     private val version = "0.14.1"
