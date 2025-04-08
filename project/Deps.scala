@@ -9,7 +9,7 @@ object Deps {
 
   val scalaReflect = dep("org.scala-lang" % "scala-reflect")
   val cats = dep("org.typelevel" %%% "cats-core" % "2.13.0")
-  val catsEffect = dep("org.typelevel" %%% "cats-effect" % "3.6.0")
+  val catsEffect = dep("org.typelevel" %%% "cats-effect" % "3.6.1")
   val chameleon = dep("com.github.cornerman" %%% "chameleon" % "0.4.1")
 
   val zioJson = dep("dev.zio" %%% "zio-json" % "0.7.39")
