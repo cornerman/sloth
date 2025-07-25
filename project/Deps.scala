@@ -29,5 +29,5 @@ object Deps {
     val client = dep("org.http4s" %%% "http4s-client" % version)
   }
 
-  val scalaJsDom = dep("org.scala-js" %%% "scalajs-dom" % "2.8.0")
+  val scalaJsDom = dep("org.scala-js" %%% "scalajs-dom" % "2.8.1")
 }
