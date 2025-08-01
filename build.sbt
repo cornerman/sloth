@@ -3,7 +3,7 @@ Global / onChangedBuildSource := IgnoreSourceChanges
 inThisBuild(Seq(
   organization := "com.github.cornerman",
 
-  crossScalaVersions := Seq("2.13.16", "3.3.0"),
+  crossScalaVersions := Seq("2.13.16", "3.3.6"),
   scalaVersion := crossScalaVersions.value.head,
 
   licenses := Seq("MIT License" -> url("https://opensource.org/licenses/MIT")),
@@ -46,7 +46,7 @@ lazy val types = crossProject(JSPlatform, JVMPlatform)
   .crossType(CrossType.Pure)
   .settings(commonSettings)
   .settings(
-    crossScalaVersions := Seq("2.12.20", "2.13.16", "3.3.0"),
+    crossScalaVersions := Seq("2.12.20", "2.13.16", "3.3.6"),
     name := "sloth-types",
     libraryDependencies ++=
       Deps.cats.value ::
