@@ -35,7 +35,7 @@ lazy val commonSettings = Seq(
 
 lazy val jsSettings = Seq(
   scalacOptions ++= (CrossVersion.partialVersion(scalaVersion.value) match {
-    case Some((3, _)) => Seq("-scalajs")
+    case Some((3, _)) => Seq.empty
     case _ => Seq.empty
   }),
 )
