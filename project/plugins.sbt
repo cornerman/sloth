@@ -1,5 +1,5 @@
 addSbtPlugin("org.portable-scala" % "sbt-scalajs-crossproject" % "1.4.0")
-addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.22.0")
+addSbtPlugin("org.scala-js" % "sbt-scalajs" % "1.23.0")
 
 addSbtPlugin("io.github.davidgregory084" % "sbt-tpolecat" % "0.4.1")
 
