@@ -5,7 +5,6 @@ import cats.implicits._
 import sloth.{Request, RequestTransport}
 import org.scalajs.dom
 
-import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
 
 case class HttpRequestConfig(
@@ -18,10 +17,12 @@ object HttpRpcTransport {
 
   def apply[F[_]: Async](config: F[HttpRequestConfig]): RequestTransport[String, F] = new RequestTransport[String, F] {
     override def apply(request: Request[String]): F[String] = for {
-      config <- config
-      url = s"${config.baseUri}/${request.method.traitName}/${request.method.methodName}"
+      config     <- config
+      url         = s"${config.baseUri}/${request.method.traitName}/${request.method.methodName}"
       requestArgs = new dom.RequestInit { headers = config.headers.toJSDictionary; method = dom.HttpMethod.POST; body = request.payload }
-      result <- Async[F].fromThenable(Async[F].delay[js.Thenable[String]](dom.fetch(url, requestArgs).`then`[String](_.text())))
+      response   <- Async[F].fromPromise(Async[F].delay(dom.fetch(url, requestArgs)))
+      _          <- Async[F].raiseWhen(!response.ok)(new Exception(s"${request.method.traitName}.${request.method.methodName} returned HTTP ${response.status}"))
+      result     <- Async[F].fromPromise(Async[F].delay(response.text()))
     } yield result
   }
 }
