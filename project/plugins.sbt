@@ -7,4 +7,4 @@ addSbtPlugin("com.github.sbt" % "sbt-git" % "3.0.0")
 
 addSbtPlugin("com.github.sbt" % "sbt-ci-release" % "1.12.1")
 
-addSbtPlugin("com.thoughtworks.sbt-scala-js-map" % "sbt-scala-js-map" % "4.1.1")
+addSbtPlugin("com.thoughtworks.sbt-scala-js-map" % "sbt-scala-js-map" % "4.1.2")
